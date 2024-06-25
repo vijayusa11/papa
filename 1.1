@@ -54,3 +54,86 @@ public async Task ExampleMethod(string filePath)
 
 Microsoft.Graph.ServiceException: 'Code: BadRequest
 Message: Resource not found for the segment 'gpslocums.sharepoint.com'.
+
+
+
+mmmmmmm
+
+The error you're encountering, `Microsoft.Graph.ServiceException: 'Code: BadRequest Message: Resource not found for the segment 'gpslocums.sharepoint.com'`, indicates that there's a problem with the URL or the way you're referencing the SharePoint site.
+
+To resolve this, there are a few changes and clarifications needed in your code:
+
+1. **Correcting the Site ID Usage**: You should reference the site by its site ID instead of using the URL directly. This requires fetching the site ID.
+
+2. **Correcting the Graph Client's Root Directory**: Ensure you are navigating to the correct directory on SharePoint to upload the file.
+
+Here's the updated code with these corrections:
+
+```csharp
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = ""; // Tenant ID
+        string clientId = ""; // Client ID
+        string clientSecret = ""; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        // Get the site ID
+        var site = await graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+        // Define the target folder path and file content
+        string targetFolderPath = "/sites/PowerBI/Shared Documents";
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+        
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var uploadItem = new DriveItemUploadableProperties
+            {
+                Name = Path.GetFileName(filePath),
+                AdditionalData = new Dictionary<string, object>
+                {
+                    { "@microsoft.graph.conflictBehavior", "rename" }
+                }
+            };
+
+            // Upload the file
+            var uploadedFile = await graphClient.Sites[site.Id]
+                .Drive
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .PutAsync<DriveItem>(stream);
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+### Key Points:
+1. **Fetch the Site ID**: Use `graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com")` to fetch the site information.
+2. **Target Folder Path**: Ensure the target folder path is correct. The example uses `"/sites/PowerBI/Shared Documents"`, but adjust it to your actual folder path if different.
+3. **Authentication**: Ensure `tenantId`, `clientId`, and `clientSecret` are correctly populated with your Azure AD application's details.
+
+This should help in resolving the "Resource not found" error and correctly uploading the file to the SharePoint site.
