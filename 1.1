@@ -1,0 +1,56 @@
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = ""; // Tenant ID
+        string clientId = ""; // Client ID
+        string clientSecret = ""; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        // string targetFolderUrl = "https://gpslocums-my.sharepoint.com/personal/qxserviceaccount_medsolhealthcare_com/Documents";
+        string targetFolderUrl = "https://gpslocums.sharepoint.com/:f:/s/PowerBI/EuwzDrxmX69JrQicjCH9Vv8BgtnOgozIfDlO-68mZZpnDA?e=2qb4w6";
+
+        // Read file content
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var uploadItem = new DriveItemUploadableProperties
+            {
+                Name = Path.GetFileName(filePath),
+                AdditionalData = new Dictionary<string, object>
+        {
+            { "@microsoft.graph.conflictBehavior", "rename" }
+        }
+            };
+
+            var uploadedFile = await graphClient.Sites["https://gpslocums.sharepoint.com/sites/PowerBI/"]
+                .Drive.Root.ItemWithPath($"{targetFolderUrl}/{Path.GetFileName(filePath)}")
+                .Content.Request()
+                .PutAsync<DriveItem>(stream);
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+
+Microsoft.Graph.ServiceException: 'Code: BadRequest
+Message: Resource not found for the segment 'gpslocums.sharepoint.com'.
