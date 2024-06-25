@@ -1,0 +1,62 @@
+The error message you're encountering typically arises due to version conflicts in your application’s assembly references. Here are some steps to resolve the issue:
+
+1. **Check Assembly Versions**:
+   Make sure the versions specified in your `Web.config` or `app.config` match the versions of the assemblies actually installed in your project.
+
+2. **Update Packages**:
+   Update the NuGet packages for `Microsoft.AspNet.Razor`, `Microsoft.AspNet.WebPages`, and `Microsoft.AspNet.Mvc` to ensure all dependencies are consistent.
+
+   ```sh
+   Update-Package Microsoft.AspNet.Razor
+   Update-Package Microsoft.AspNet.WebPages
+   Update-Package Microsoft.AspNet.Mvc
+   ```
+
+3. **Consolidate Assembly Versions**:
+   Ensure there are no conflicting versions of the same assembly in your project. You can check the installed versions using the NuGet Package Manager in Visual Studio.
+
+4. **Modify Web.config**:
+   Ensure your `Web.config` file has correct and consistent binding redirects for the `System.Web.Razor` and `System.Web.WebPages.Razor` assemblies. Based on your provided configuration, here’s a sample:
+
+   ```xml
+   <configuration>
+     <runtime>
+       <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+         <dependentAssembly>
+           <assemblyIdentity name="System.Web.Razor" publicKeyToken="31BF3856AD364E35" culture="neutral" />
+           <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+         </dependentAssembly>
+         <dependentAssembly>
+           <assemblyIdentity name="System.Web.WebPages.Razor" publicKeyToken="31BF3856AD364E35" culture="neutral" />
+           <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+         </dependentAssembly>
+         <dependentAssembly>
+           <assemblyIdentity name="System.Web.WebPages" publicKeyToken="31BF3856AD364E35" culture="neutral" />
+           <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+         </dependentAssembly>
+       </assemblyBinding>
+     </runtime>
+   </configuration>
+   ```
+
+5. **Clean and Rebuild Solution**:
+   Clean the solution and then rebuild it to ensure that the old cached versions of assemblies are removed.
+
+   ```sh
+   Clean Solution
+   Rebuild Solution
+   ```
+
+6. **Delete Temporary ASP.NET Files**:
+   Sometimes, clearing the temporary ASP.NET files can resolve issues related to assembly loading.
+
+   ```sh
+   %LocalAppData%\Microsoft\ASP.NET
+   ```
+
+   Delete the contents of the `Temporary ASP.NET Files` directory.
+
+7. **Ensure Correct Project References**:
+   Ensure that the project references are pointing to the correct versions of the DLLs. Remove and re-add the references if necessary.
+
+By following these steps, you should be able to resolve the version conflict issue related to `System.Web.WebPages.Razor` and its dependencies.
