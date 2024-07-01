@@ -1,0 +1,64 @@
+ public async Task ExampleMethod(string filePath)
+ {
+     try
+     {
+         string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+         string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+         string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+         string clientSecret = ""; // Client Secret
+
+         var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+             .WithClientSecret(clientSecret)
+             .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+             .Build();
+
+         var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+         var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+             (requestMessage) =>
+             {
+                 requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                 return Task.CompletedTask;
+             }));
+
+         var site = await graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+         //  string targetFolderPath = "/PowerBI/EuwzDrxmX69JrQicjCH9Vv8BgtnOgozIfDlO-68mZZpnDA?e=2qb4w6";
+
+         string targetFolderPath = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems.aspx?newTargetListUrl=%2Fsites%2FPowerBI%2FShared%20Documents&viewpath=%2Fsites%2FPowerBI%2FShared%20Documents%2FForms%2FAllItems%2Easpx&id=%2Fsites%2FPowerBI%2FShared%20Documents%2FQXTest&viewid=52fb9c48%2D0833%2D4303%2Db158%2Dca6357ded496";
+
+
+         byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+         using (var stream = new MemoryStream(fileContent))
+         {
+             var uploadItem = new DriveItemUploadableProperties
+             {
+                 Name = Path.GetFileName(filePath),
+                 AdditionalData = new Dictionary<string, object>
+         {
+             { "@microsoft.graph.conflictBehavior", "rename" }
+         }
+             };
+
+             var uploadedFile = await graphClient.Sites[site.Id]
+                 .Drive
+                 .Root
+                 .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                 .Content
+                 .Request()
+                 .PutAsync<DriveItem>(stream);
+
+             Console.WriteLine("File uploaded successfully to SharePoint.");
+         }
+     }
+     catch (Exception ex)
+     {
+         Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+         // Log the error or handle it as per your application's error handling strategy
+     }
+ }
+
+ getting error - 
+
+ 	$exception	{"Code: BadRequest\r\nMessage: Entity only allows writes with a JSON Content-Type header.\r\n\r\nInner error\r\n"}	Microsoft.Graph.ServiceException
