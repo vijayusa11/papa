@@ -1,0 +1,71 @@
+To resolve the error "Entity only allows writes with a JSON Content-Type header," you need to make sure that the content-type header is set to the correct type when uploading the file. In the context of the Microsoft Graph SDK, this error usually means the request headers or the content of the request does not match the expected format.
+
+Here is a revised version of your code to correctly set the content type and upload a file to SharePoint:
+
+```csharp
+using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using Microsoft.Graph;
+using Microsoft.Identity.Client;
+
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = ""; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        var site = await graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+        // Update the targetFolderPath to the correct path in the drive
+        string targetFolderPath = "/sites/PowerBI/Shared Documents/QXTest";
+
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var uploadedFile = await graphClient.Sites[site.Id]
+                .Drive
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .Header("Content-Type", "application/octet-stream")
+                .PutAsync<DriveItem>(stream);
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+In this code:
+
+1. The `targetFolderPath` is updated to reflect the correct path structure for SharePoint.
+2. The `Header("Content-Type", "application/octet-stream")` line ensures the correct content type is set for the file upload.
+
+This should resolve the issue and allow you to upload the file to SharePoint correctly.
