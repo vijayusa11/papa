@@ -1,0 +1,69 @@
+Sure, here's the revised code to only read the CSV file from the SharePoint folder:
+
+```csharp
+using System;
+using System.IO;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using Microsoft.Graph;
+using Microsoft.Identity.Client;
+
+public async Task ReadCsvFileFromSharePoint()
+{
+    try
+    {
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = ""; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        var site = await graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+        // Path to the CSV file in the SharePoint document library
+        string filePath = "/sites/PowerBI/Shared Documents/Call Stats Template.csv";
+
+        // Download the file
+        var stream = await graphClient.Sites[site.Id]
+            .Drive
+            .Root
+            .ItemWithPath(filePath)
+            .Content
+            .Request()
+            .GetAsync();
+
+        using (var reader = new StreamReader(stream))
+        {
+            string csvContent = await reader.ReadToEndAsync();
+            Console.WriteLine("CSV File Content:");
+            Console.WriteLine(csvContent);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error reading file from SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+In this code:
+
+1. It authenticates using the tenant ID, client ID, and client secret.
+2. It gets the site by its path.
+3. It constructs the file path to the CSV file within the SharePoint document library.
+4. It reads the content of the CSV file and prints it to the console.
+
+Ensure to replace `clientSecret` with the actual client secret. Adjust the `filePath` to match the path in your SharePoint library structure.
