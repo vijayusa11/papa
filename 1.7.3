@@ -1,0 +1,107 @@
+The errors you're encountering indicate that the `LargeFileUploadTask` class and `IUploadSession` interface are not recognized. These are part of the `Microsoft.Graph` namespace, so you need to ensure you have the appropriate references and using directives.
+
+1. **Add NuGet Package**: Ensure that you have the `Microsoft.Graph` and `Microsoft.Graph.Core` NuGet packages installed. You can install them using the following commands in the NuGet Package Manager Console:
+
+   ```shell
+   Install-Package Microsoft.Graph
+   Install-Package Microsoft.Graph.Core
+   ```
+
+2. **Add Using Directives**: Ensure you have the necessary `using` directives at the top of your file:
+
+   ```csharp
+   using Microsoft.Graph;
+   using Microsoft.Graph.Auth;
+   using Microsoft.Identity.Client;
+   using System.IO;
+   using System.Net.Http.Headers;
+   using System.Threading.Tasks;
+   ```
+
+Here's the updated and complete code:
+
+```csharp
+using Microsoft.Graph;
+using Microsoft.Graph.Auth;
+using Microsoft.Identity.Client;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = ""; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        var site = await graphClient.Sites.GetByPath("sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+        string targetFolderPath = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems.aspx?newTargetListUrl=%2Fsites%2FPowerBI%2FShared%20Documents&viewpath=%2Fsites%2FPowerBI%2FShared%20Documents%2FForms%2FAllItems%2Easpx&id=%2Fsites%2FPowerBI%2FShared%20Documents%2FQXTest&viewid=52fb9c48%2D0833%2D4303%2Db158%2Dca6357ded496";
+
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var uploadSession = await graphClient.Sites[site.Id]
+                .Drive
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .CreateUploadSession(new DriveItemUploadableProperties
+                {
+                    Name = Path.GetFileName(filePath),
+                    AdditionalData = new Dictionary<string, object>
+                    {
+                        { "@microsoft.graph.conflictBehavior", "rename" }
+                    }
+                })
+                .Request()
+                .PostAsync();
+
+            var maxSliceSize = 320 * 1024; // 320 KB - Change this to your preferred chunk size.
+            var largeFileUploadTask = new LargeFileUploadTask<DriveItem>(uploadSession, stream, maxSliceSize);
+
+            UploadResult<DriveItem> uploadResult = await largeFileUploadTask.UploadAsync();
+
+            if (uploadResult.UploadSucceeded)
+            {
+                Console.WriteLine("File uploaded successfully to SharePoint.");
+            }
+            else
+            {
+                Console.WriteLine("Upload failed.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+Key points:
+1. **Namespace Imports**: Ensure all required namespaces are imported.
+2. **Package Installation**: Ensure the necessary NuGet packages (`Microsoft.Graph` and `Microsoft.Graph.Core`) are installed.
+3. **Code Adjustments**: Use the `CreateUploadSession` and `LargeFileUploadTask` classes correctly.
+
+This should resolve the compilation errors and handle the file upload to SharePoint properly.
