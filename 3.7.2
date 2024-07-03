@@ -1,0 +1,67 @@
+To allow duplicate values and remove the existence check, you can simply eliminate the `checkExistenceQuery` and its associated logic. The modified method will directly insert values into the database without checking for duplicates. Here is the revised code:
+
+```csharp
+private void InsertIntoDatabase(string excelFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var workbook = new XSSFWorkbook(File.Open(excelFilePath, FileMode.Open, FileAccess.Read)))
+                {
+                    ISheet sheet = workbook.GetSheet(sheetName);
+
+                    if (sheet == null)
+                    {
+                        LogToErrorFile($"Sheet '{sheetName}' not found in workbook.");
+                        return;
+                    }
+
+                    for (int i = 1; i <= sheet.LastRowNum; i++)
+                    {
+                        var row = sheet.GetRow(i);
+                        if (row == null)
+                        {
+                            LogToErrorFile($"Row {i} is null.");
+                            continue;
+                        }
+
+                        DateTime date = (DateTime)row.GetCell(0).DateCellValue;
+                        string agent = row.GetCell(1).StringCellValue;
+                        string timesheetOwner = row.GetCell(2).StringCellValue;
+                        string totalTalkingTime = row.GetCell(3).StringCellValue;
+
+                        insertCommand.Parameters.Clear();
+                        insertCommand.Parameters.AddWithValue("@Date", date);
+                        insertCommand.Parameters.AddWithValue("@Agent", agent);
+                        insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        insertCommand.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+This version of the method does not include the check for existing records and will insert all rows from the Excel sheet into the `OutputFileDetails` table, even if duplicates exist.
