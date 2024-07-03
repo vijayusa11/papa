@@ -1,0 +1,19 @@
+To create the `OutputFileDetails` table, you can use the following SQL script. This script defines a table with columns for `Date`, `Agent`, `TimesheetOwner`, and `TotalTalkingTime`:
+
+```sql
+CREATE TABLE OutputFileDetails (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Date DATETIME NOT NULL,
+    Agent NVARCHAR(255) NOT NULL,
+    TimesheetOwner NVARCHAR(255) NOT NULL,
+    TotalTalkingTime NVARCHAR(255) NOT NULL
+);
+```
+
+Here’s how to execute this script:
+
+1. **Using SQL Server Management Studio (SSMS):**
+   - Open SSMS and connect to your database server.
+   - Select your database from the Object Explorer.
+   - Click on the `New Query` button.
+   - Copy and
