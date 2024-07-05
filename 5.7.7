@@ -1,0 +1,52 @@
+To set the cell font style to bold using `NPOI` (the .NET library that works with the HSSF and XSSF formats of Excel), you need to create a new cell style and font, apply the font to the style, and then apply the style to the cell.
+
+Here is an example of how to do this:
+
+```csharp
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
+using NPOI.HSSF.UserModel;
+using System.IO;
+
+public void CreateExcelWithBoldCell(string filePath)
+{
+    // Create a new workbook and a sheet
+    IWorkbook workbook = new XSSFWorkbook();
+    ISheet sheet = workbook.CreateSheet("Sheet1");
+
+    // Create a new row and a cell
+    IRow row = sheet.CreateRow(0);
+    ICell cell = row.CreateCell(0);
+    cell.SetCellValue("Bold Text");
+
+    // Create a new font and set it to bold
+    IFont font = workbook.CreateFont();
+    font.IsBold = true;
+
+    // Create a new cell style and set the font
+    ICellStyle style = workbook.CreateCellStyle();
+    style.SetFont(font);
+
+    // Apply the cell style to the cell
+    cell.CellStyle = style;
+
+    // Save the workbook to the file
+    using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+    {
+        workbook.Write(fs);
+    }
+
+    workbook.Close();
+}
+```
+
+In this example:
+1. An `XSSFWorkbook` is created, which is suitable for .xlsx files. For .xls files, use `HSSFWorkbook` instead.
+2. A new sheet and a row are created.
+3. A new cell is created and set to contain the text "Bold Text".
+4. A new font is created, and its `IsBold` property is set to `true`.
+5. A new cell style is created, and the font is set to the style.
+6. The cell style is applied to the cell.
+7. The workbook is saved to the specified file path.
+
+This will produce an Excel file with the first cell in the first row containing bold text. Adjust the example as needed to fit your specific use case.
