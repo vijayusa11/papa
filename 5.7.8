@@ -1,0 +1,54 @@
+To set the font style to bold in an existing Excel file during the export process, you can modify the code to open an existing file, apply the desired formatting, and then save the file. Here’s an example using `NPOI`:
+
+```csharp
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
+using NPOI.HSSF.UserModel;
+using System.IO;
+
+public void SetBoldCellStyleInExistingExcel(string filePath)
+{
+    // Open the existing workbook
+    IWorkbook workbook;
+    using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+    {
+        workbook = WorkbookFactory.Create(fs);
+    }
+
+    // Get the first sheet
+    ISheet sheet = workbook.GetSheetAt(0);
+
+    // Get the first row and the first cell
+    IRow row = sheet.GetRow(0);
+    ICell cell = row.GetCell(0);
+
+    // Create a new font and set it to bold
+    IFont font = workbook.CreateFont();
+    font.IsBold = true;
+
+    // Create a new cell style and set the font
+    ICellStyle style = workbook.CreateCellStyle();
+    style.SetFont(font);
+
+    // Apply the cell style to the cell
+    cell.CellStyle = style;
+
+    // Save the workbook to the file
+    using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Write))
+    {
+        workbook.Write(fs);
+    }
+
+    workbook.Close();
+}
+```
+
+In this example:
+1. The existing workbook is opened using `WorkbookFactory.Create` to handle both `.xls` and `.xlsx` formats.
+2. The first sheet, row, and cell are accessed.
+3. A new font is created with the `IsBold` property set to `true`.
+4. A new cell style is created, and the font is assigned to this style.
+5. The cell style is applied to the cell.
+6. The workbook is saved back to the file, preserving the changes.
+
+This code modifies the font style of the first cell in the first row of an existing Excel file to bold. Adjust the cell references and file path as needed to suit your requirements.
