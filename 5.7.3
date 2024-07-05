@@ -1,0 +1,111 @@
+To actually bold the text in a CSV export, you'll need to use a format that supports rich text, such as HTML. Since CSV files themselves don't support formatting, the appearance of bold text would need to be managed by the application that reads the CSV. 
+
+If you're limited to CSV but still want to indicate modified entries in a way that makes it clear when viewing the raw data, you can use a different marker or text manipulation to indicate the change. Here's how you might use surrounding text markers:
+
+```csharp
+foreach (var b in a)
+{
+    strData = string.Empty;
+    strData += Common.GetExportString(b.FirstName) + ",";
+    strData += Common.GetExportString(b.MiddleName) + ",";
+    strData += Common.GetExportString(b.LastName) + ",";
+    strData += Common.GetExportString(b.BirthDate) + ",";
+    strData += Common.GetExportString(b.Department) + ",";
+    strData += Common.GetExportString(b.Designation) + ",";
+    strData += Common.GetExportString(b.LineManagerName) + ",";
+    strData += Common.GetExportString(b.JoiningDate) + ",";
+    strData += Common.GetExportString(b.GPhCNo) + ",";
+    strData += Common.GetExportString(b.GPHCRegistrationExpiryDate) + ",";
+    strData += Common.GetExportString(b.Email) + ",";
+    strData += Common.GetExportString(b.ContractorCode) + ",";
+
+    // Check if IsBankNameModify is TRUE and modify BankName accordingly
+    string bankName = b.IsBankNameModify ? "MODIFIED: " + b.BankName : b.BankName;
+    strData += Common.GetExportString(bankName) + ",";
+    
+    strData += Common.GetExportString(b.BankAddress) + ",";
+    strData += Common.GetExportString(b.BankAccountName) + ",";
+    strData += Common.GetExportString(b.BankAccountNo) + ",";
+    strData += Common.GetExportString(b.BankAccShortCode) + ",";
+    strData += Common.GetExportString(b.IsBankNameModify) + ",";
+
+    sw.Write(strData.Substring(0, strData.Length - 1));
+    sw.Write(sw.NewLine);
+}
+sw.Close();
+strreturn = Path.GetFileName(strExportPath.Trim());
+```
+
+If you need to export the data in a more sophisticated format that supports rich text (e.g., Excel), consider using a library like EPPlus or NPOI for C# to create an Excel file instead of a CSV. Here's a brief example using EPPlus:
+
+1. Install EPPlus via NuGet.
+2. Modify your export logic to use EPPlus to create an Excel file.
+
+Example with EPPlus:
+
+```csharp
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+
+// Make sure to install EPPlus via NuGet Package Manager first
+
+string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "Export_" + DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss_fff") + ".xlsx");
+if (!Directory.Exists(Path.GetDirectoryName(strExportPath)))
+{
+    Directory.CreateDirectory(Path.GetDirectoryName(strExportPath));
+}
+
+using (ExcelPackage package = new ExcelPackage(new FileInfo(strExportPath)))
+{
+    ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Sheet1");
+
+    // Write the header
+    string[] headers = new string[] { "First Name", "Middle Name", "Last Name", "Birth Date", "Department", "Job Title", "Line Manager Name", "Joining Date", "Gphc number", "Gphc expiry date", "Office email", "Staff Xero Code", "Bank Name", "Bank Address", "Bank Account Name", "Bank Account No", "Bank Acc Short Code" };
+    for (int i = 0; i < headers.Length; i++)
+    {
+        worksheet.Cells[1, i + 1].Value = headers[i];
+    }
+
+    int row = 2;
+    foreach (var b in a)
+    {
+        worksheet.Cells[row, 1].Value = b.FirstName;
+        worksheet.Cells[row, 2].Value = b.MiddleName;
+        worksheet.Cells[row, 3].Value = b.LastName;
+        worksheet.Cells[row, 4].Value = b.BirthDate;
+        worksheet.Cells[row, 5].Value = b.Department;
+        worksheet.Cells[row, 6].Value = b.Designation;
+        worksheet.Cells[row, 7].Value = b.LineManagerName;
+        worksheet.Cells[row, 8].Value = b.JoiningDate;
+        worksheet.Cells[row, 9].Value = b.GPhCNo;
+        worksheet.Cells[row, 10].Value = b.GPHCRegistrationExpiryDate;
+        worksheet.Cells[row, 11].Value = b.Email;
+        worksheet.Cells[row, 12].Value = b.ContractorCode;
+
+        // Check if IsBankNameModify is TRUE and modify BankName accordingly
+        string bankName = b.BankName;
+        var bankNameCell = worksheet.Cells[row, 13];
+        bankNameCell.Value = bankName;
+        if (b.IsBankNameModify)
+        {
+            bankNameCell.Style.Font.Bold = true;
+        }
+
+        worksheet.Cells[row, 14].Value = b.BankAddress;
+        worksheet.Cells[row, 15].Value = b.BankAccountName;
+        worksheet.Cells[row, 16].Value = b.BankAccountNo;
+        worksheet.Cells[row, 17].Value = b.BankAccShortCode;
+
+        row++;
+    }
+
+    package.Save();
+}
+
+a = null;
+objBL.Dispose();
+
+return Json(Path.GetFileName(strExportPath.Trim()), JsonRequestBehavior.AllowGet);
+```
+
+This approach writes the data to an Excel file, where you can easily apply formatting like bold text.
