@@ -1,0 +1,346 @@
+public ActionResult ExportDynamicStaffDetail()
+{
+    string strreturn = string.Empty;
+    string pagestring = string.Empty;
+
+
+    string employeecode = string.Empty;
+    string employeename = string.Empty;
+    string designation = string.Empty;
+    string department = string.Empty;
+    string email = string.Empty;
+    string username = string.Empty;
+    string employeeGroupName = string.Empty;
+    string Status = string.Empty;
+    string ComplianceStatus = string.Empty;
+    string ComplianceStatusT = string.Empty;
+    string isdelete = Convert.ToString(Request["IsDelete"]);
+    string employeeIds = Convert.ToString(Request["SelectedEmployees"]);
+    string rolename = string.Empty;
+
+    string orderby = string.Empty;
+    string ordertype = string.Empty;
+    string BankName = string.Empty;
+    string BankAddress = string.Empty;
+    string BankAccountName = string.Empty;
+    string BankAccountNo = string.Empty;
+    string BankAccShortCode = string.Empty;
+   // Boolean IsBankNameModify = false;
+    //string orderbylinq = string.Empty;
+    //int userstatus = 0;
+    //int userid = 0;
+
+    BLEmployees objBL = new BLEmployees();
+
+    orderby = orderby.Replace("EmployeeName", "FirstName");
+
+    // Vijay 13
+//    var a = objBL.GetEmployeeListExport(employeecode, employeename, designation, department, email, username, employeeGroupName, Status, ComplianceStatus, isdelete, orderby, ordertype);
+    var a = objBL.GetEmployeeListWithBankExport(employeecode, employeename, designation, department, email, username, employeeGroupName, Status, ComplianceStatus, isdelete, orderby, ordertype, BankName, BankAddress, BankAccountName, BankAccountNo, BankAccShortCode);
+
+    if (ConfigurationManager.AppSettings["Azure_Attachment"] == "1")
+    {
+        string strExportPath = "Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim();
+        string fileName = "Export_" + DateTime.Now.Year + "_" + DateTime.Now.Month + "_" + DateTime.Now.Day + "_" + DateTime.Now.Hour + "_" + DateTime.Now.Minute + "_" + DateTime.Now.Millisecond + ".csv";
+
+        StringWriter sw = new StringWriter();
+        string strData = string.Empty;
+
+        //string strHeader = ",First Name,Middle Name,Last Name,Birth Date,Department,Job Title,Line Manager Name,NI Number,Type,Joining Date,Address,Gphc number,Gphc expiry date,DBS number,DBS expiry date,Non medical prescriber status,Office email,Smart card number,Total PDR Score";
+        // Vijay 13
+        string strHeader = ",First Name,Middle Name,Last Name,Birth Date,Department,Job Title,Line Manager Name,Joining Date,Gphc number,Gphc expiry date,Office email,Staff Xero Code";
+        if (Request["ExportHeader"] != null)
+        {
+            strData = string.Empty;
+            //strData = Convert.ToString(Request["ExportHeader"]);
+            strData = strHeader;
+            sw.Write(strData.Substring(1, strData.Length - 1));
+            sw.Write(sw.NewLine);
+        }
+
+        if (a != null)
+        {
+            //int i = 0;
+            foreach (var b in a)
+            {
+                strData = string.Empty;
+                ////strData += Common.GetExportString(b.EmployeeCode.ToString()) + ",";
+                strData += Common.GetExportString(b.FirstName) + ",";
+                strData += Common.GetExportString(b.MiddleName) + ",";
+                strData += Common.GetExportString(b.LastName) + ",";
+                strData += Common.GetExportString(b.BirthDate) + ",";
+                strData += Common.GetExportString(b.Department) + ",";
+                strData += Common.GetExportString(b.Designation) + ",";
+                strData += Common.GetExportString(b.LineManagerName) + ",";
+                //strData += Common.GetExportString(b.NINumber) + ",";
+                //strData += Common.GetExportString(b.type) + ",";
+                strData += Common.GetExportString(b.JoiningDate) + ",";
+                //strData += Common.GetExportString(b.Address) + ",";
+                strData += Common.GetExportString(b.GPhCNo) + ",";
+                strData += Common.GetExportString(b.GPHCRegistrationExpiryDate) + ",";
+                //strData += Common.GetExportString(b.DBSNo) + ",";
+                //strData += Common.GetExportString(b.DBSRegistrationExpiryDate) + ",";
+
+                //strData += Common.GetExportString(b.NonMedicalPescriber) + ",";
+                strData += Common.GetExportString(b.Email) + ",";
+                strData += Common.GetExportString(b.ContractorCode) + ",";
+              
+                              sw.Write(strData.Substring(0, strData.Length - 1));
+                sw.Write(sw.NewLine);
+            }
+
+
+            BLAzureCommonAPI bLAzureCommonAPI = new BLAzureCommonAPI();
+            AzureSaveSingleFileDto azureSaveFileModel = new AzureSaveSingleFileDto()
+            {
+                ProjectCode = ConfigurationManager.AppSettings["Azure_Project_Code"],
+                FileName = fileName,
+                SavePath = strExportPath,
+                FileBytes = bLAzureCommonAPI.ConvertStringToByte(sw.ToString())
+            };
+            bLAzureCommonAPI.SaveSingleFile(azureSaveFileModel);
+
+            sw.Close();
+            strreturn = fileName;
+        }
+        a = null;
+        objBL.Dispose();
+
+        return File(strExportPath, "application/vnd.ms-excel", Path.GetFileName(strreturn));
+    }
+    // Vijay 13 all else part
+    else
+    {
+        string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "Export_" + DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss_fff") + ".xlsx");
+        if (!Directory.Exists(Path.GetDirectoryName(strExportPath)))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(strExportPath));
+        }
+        ExcelPackage.LicenseContext = LicenseContext.Commercial;
+
+        using (ExcelPackage package = new ExcelPackage(new FileInfo(strExportPath)))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Sheet1");
+
+            // Write the header
+            string[] headers = new string[] { "First Name", "Middle Name", "Last Name", "Birth Date", "Department", "Job Title", "Line Manager Name", "Joining Date", "Gphc number", "Gphc expiry date", "Office email", "Staff Xero Code", "Bank Name", "Bank Address", "Bank Account Name", "Bank Account No", "Bank Acc Short Code" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+
+            int row = 2;
+            foreach (var b in a)
+            {
+                worksheet.Cells[row, 1].Value = b.FirstName;
+                worksheet.Cells[row, 2].Value = b.MiddleName;
+                worksheet.Cells[row, 3].Value = b.LastName;
+                worksheet.Cells[row, 4].Value = b.BirthDate;
+                worksheet.Cells[row, 5].Value = b.Department;
+                worksheet.Cells[row, 6].Value = b.Designation;
+                worksheet.Cells[row, 7].Value = b.LineManagerName;
+                worksheet.Cells[row, 8].Value = b.JoiningDate;
+                worksheet.Cells[row, 9].Value = b.GPhCNo;
+                worksheet.Cells[row, 10].Value = b.GPHCRegistrationExpiryDate;
+                worksheet.Cells[row, 11].Value = b.Email;
+                worksheet.Cells[row, 12].Value = b.ContractorCode;
+                
+                string bankName = b.BankName;
+                var bankNameCell = worksheet.Cells[row, 13];
+                bankNameCell.Value = bankName;
+                if (Convert.ToBoolean(b.IsBankNameModify))
+                {
+                    bankNameCell.Style.Font.Bold = true;
+                }
+
+                //  worksheet.Cells[row, 14].Value = b.BankAddress;
+
+                string bankAddress = b.BankAddress;
+                var bankBankAddressCell = worksheet.Cells[row, 14];
+                bankBankAddressCell.Value = bankAddress;
+                if (Convert.ToBoolean(b.IsBankAddressModify))
+                {
+                    bankBankAddressCell.Style.Font.Bold = true;
+                }
+
+                //  worksheet.Cells[row, 15].Value = b.BankAccountName;
+
+                string bankAccountName = b.BankAccountName;
+                var bankAccountNameCell = worksheet.Cells[row, 15];
+                bankAccountNameCell.Value = bankAccountName;
+                if (Convert.ToBoolean(b.IsBankAccountNameModify))
+                {
+                    bankAccountNameCell.Style.Font.Bold = true;
+                }
+
+                //  worksheet.Cells[row, 16].Value = b.BankAccountNo;
+
+                string bankAccountNo = b.BankAccountNo;
+                var bankAccountNoCell = worksheet.Cells[row, 16];
+                bankAccountNoCell.Value = bankAccountNo;
+                if (Convert.ToBoolean(b.IsBankAccountNoModify))
+                {
+                    bankAccountNoCell.Style.Font.Bold = true;
+                }
+
+                //  worksheet.Cells[row, 17].Value = b.BankAccShortCode;
+
+                string bankAccShortCode = b.BankAccShortCode;
+                var bankAccShortCodeCell = worksheet.Cells[row, 17];
+                bankAccShortCodeCell.Value = bankAccShortCode;
+                if (Convert.ToBoolean(b.IsBankAccShortCodeModify))
+                {
+                    bankAccShortCodeCell.Style.Font.Bold = true;
+                }
+
+                row++;
+            }
+
+            package.Save();
+        }
+
+        a = null;
+        objBL.Dispose();
+
+        return Json(Path.GetFileName(strExportPath.Trim()), JsonRequestBehavior.AllowGet);
+    }   
+}
+
+want to convert above method to below method
+
+
+ public ResponseModel UploadCalendarExcel(string filePath, UploadFileModel request)
+ {
+     try
+     {
+         var response = new ResponseModel();
+         BLHoliday objBLHoliday = new BLHoliday();
+         List<RotaFileHeaderModel> headerModelList = new List<RotaFileHeaderModel>();
+
+         using (var fStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+         {
+             fStream.Position = 0;
+             XSSFWorkbook objWorkbook = new XSSFWorkbook(fStream);
+             ISheet objWorksheet;
+
+             objWorksheet = objWorkbook.GetSheetAt(0);
+             IRow objHeader = objWorksheet.GetRow(0);
+             int countCells = objHeader.LastCellNum;
+             int totalRows = objWorksheet.LastRowNum;
+             string statusMsg = string.Empty;
+             string statusColor = string.Empty;
+             int MsgPrintColumnNo = 15;
+
+             for (int i = (objWorksheet.FirstRowNum + 1); i <= totalRows; i++)
+             {
+                 RotaFileHeaderModel headerModel = new RotaFileHeaderModel();
+
+                 ICell objCell = objHeader.GetCell(i); // Get header 
+                 IRow objRow = objWorksheet.GetRow(i); // Get row
+
+                 string empFirstName, empLastName, practiceName = string.Empty;
+
+                 if (objRow != null)
+                 {
+                     empFirstName = Convert.ToString(objRow.GetCell(1)).Trim();
+                     empLastName = Convert.ToString(objRow.GetCell(2)).Trim();
+                     practiceName = Convert.ToString(objRow.GetCell(3)).Trim();
+
+                     var IsPracticeData = db.TMS_Practices.Where(x => x.PracticeName == practiceName).FirstOrDefault();
+
+                     if (!string.IsNullOrEmpty(empFirstName) && !string.IsNullOrEmpty(empLastName))
+                     {
+                         var IsEmployeeExists = db.Employees.Where(x => x.FirstName == empFirstName && x.LastName == empLastName && x.StatusId == (int)EnumEmployeeStatus.WORKING && (x.IsDelete == null || x.IsDelete == false)).FirstOrDefault();
+
+                         if (IsEmployeeExists != null && IsPracticeData != null)
+                         {
+                             if (objHeader.GetCell(0).ToString().Equals(RotaFileHeader.EmployeeName.GetEnumDescription()))
+                             {
+                                 headerModel.EmployeeName = Convert.ToString(objRow.GetCell(0)).Trim();
+                             }
+                             if (objHeader.GetCell(1).ToString().Equals(RotaFileHeader.EmpFirstName.GetEnumDescription()))
+                             {
+                                 headerModel.EmpFirstName = Convert.ToString(objRow.GetCell(1)).Trim();
+                             }
+                             if (objHeader.GetCell(2).ToString().Equals(RotaFileHeader.EmpLastName.GetEnumDescription()))
+                             {
+                                 headerModel.EmpLastName = Convert.ToString(objRow.GetCell(2)).Trim();
+                             }
+                             if (objHeader.GetCell(3).ToString().Equals(RotaFileHeader.PracticeName.GetEnumDescription()))
+                             {
+                                 headerModel.PracticeName = Convert.ToString(objRow.GetCell(3)).Trim();
+                             }
+                             if (objHeader.GetCell(4).ToString().Equals(RotaFileHeader.MondayShiftHours.GetEnumDescription()))
+                             {
+                                 headerModel.MondayShiftHours = Convert.ToString(objRow.GetCell(4)).Trim();
+                             }
+                             if (objHeader.GetCell(5).ToString().Equals(RotaFileHeader.TuesdayShiftHours.GetEnumDescription()))
+                             {
+                                 headerModel.TuesdayShiftHours = Convert.ToString(objRow.GetCell(5)).Trim();
+                             }
+                             if (objHeader.GetCell(6).ToString().Equals(RotaFileHeader.WednesdayShiftHours.GetEnumDescription()))
+                             {
+                                 headerModel.WednesdayShiftHours = Convert.ToString(objRow.GetCell(6)).Trim();
+                             }
+                             if (objHeader.GetCell(7).ToString().Equals(RotaFileHeader.ThursdayShiftHours.GetEnumDescription()))
+                             {
+                                 headerModel.ThursdayShiftHours = Convert.ToString(objRow.GetCell(7)).Trim();
+                             }
+                             
+                             if (headerModel != null)
+                             {
+                                 var responseRota = InsertRotaImport(request); // save rota import details
+
+                                 if (responseRota != null)
+                                 {
+                                     headerModel.RotaImportid = responseRota.RotaImportId;
+                                     headerModel.PracticeId = IsPracticeData.PracticeId;
+                                     headerModel.EmployeeId = IsEmployeeExists.EmployeeId;
+                                     headerModel.CreatedBy = Common.Common.GetCurrentUserId();
+
+                                     var IsAdded = InsertRotaImportDetails(headerModel, request); // save rota import file data details
+
+                                     if (IsEmployeeExists != null)
+                                     {
+                                         var IsSaveClientType = SaveClientType(IsEmployeeExists);
+                                     }
+                                     
+                                     if (IsAdded)
+                                     {
+                                         statusMsg = StatusMessage.Success.GetEnumDescription();
+                                         WriteRotaExcelFile(objWorkbook, objWorksheet, objHeader, objRow, filePath, statusMsg, i, StatusColor.Green, MsgPrintColumnNo);
+                                         response.success = true;
+                                     }
+                                 }
+                             }
+                             // }
+                             //else
+                             //{
+                             //    statusMsg = res.Message;
+                             //    WriteRotaExcelFile(objWorkbook, objWorksheet, objHeader, objRow, filePath, statusMsg, i, StatusColor.Red, MsgPrintColumnNo);
+                             //}
+                         }
+                         else
+                         {
+                             statusMsg = StatusMessage.NotFound.GetEnumDescription();
+                             WriteRotaExcelFile(objWorkbook, objWorksheet, objHeader, objRow, filePath, statusMsg, i, StatusColor.Black, MsgPrintColumnNo);
+                         }
+                     }
+                     else
+                     {
+                         response.success = false;
+                         statusMsg = StatusMessage.Empty.GetEnumDescription();
+                         WriteRotaExcelFile(objWorkbook, objWorksheet, objHeader, objRow, filePath, statusMsg, i, StatusColor.Red, MsgPrintColumnNo);
+                     }
+                 }
+             }
+             response.Data = filePath;
+         }
+         return response;
+     }
+     catch (Exception exception)
+     {
+         throw;
+     }
+
+ }
