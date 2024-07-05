@@ -1,0 +1,43 @@
+To check if `IsBankNameModify` is `TRUE` and bold the `BankName` value, you can modify your code like this:
+
+1. Check the value of `IsBankNameModify`.
+2. If `TRUE`, wrap `BankName` with asterisks `**` to denote bold in markdown (if you're exporting to a markdown-supported format).
+3. Adjust the value of `BankName` accordingly before adding it to `strData`.
+
+Here's how you can update the relevant portion of your code:
+
+```csharp
+foreach (var b in a)
+{
+    strData = string.Empty;
+    strData += Common.GetExportString(b.FirstName) + ",";
+    strData += Common.GetExportString(b.MiddleName) + ",";
+    strData += Common.GetExportString(b.LastName) + ",";
+    strData += Common.GetExportString(b.BirthDate) + ",";
+    strData += Common.GetExportString(b.Department) + ",";
+    strData += Common.GetExportString(b.Designation) + ",";
+    strData += Common.GetExportString(b.LineManagerName) + ",";
+    strData += Common.GetExportString(b.JoiningDate) + ",";
+    strData += Common.GetExportString(b.GPhCNo) + ",";
+    strData += Common.GetExportString(b.GPHCRegistrationExpiryDate) + ",";
+    strData += Common.GetExportString(b.Email) + ",";
+    strData += Common.GetExportString(b.ContractorCode) + ",";
+
+    // Check if IsBankNameModify is TRUE and modify BankName accordingly
+    string bankName = b.IsBankNameModify ? "**" + b.BankName + "**" : b.BankName;
+    strData += Common.GetExportString(bankName) + ",";
+    
+    strData += Common.GetExportString(b.BankAddress) + ",";
+    strData += Common.GetExportString(b.BankAccountName) + ",";
+    strData += Common.GetExportString(b.BankAccountNo) + ",";
+    strData += Common.GetExportString(b.BankAccShortCode) + ",";
+    strData += Common.GetExportString(b.IsBankNameModify) + ",";
+
+    sw.Write(strData.Substring(0, strData.Length - 1));
+    sw.Write(sw.NewLine);
+}
+sw.Close();
+strreturn = Path.GetFileName(strExportPath.Trim());
+```
+
+This approach checks if `IsBankNameModify` is `TRUE` and conditionally wraps the `BankName` value with asterisks to simulate bold formatting. Adjust the method to match the format of your export file if needed.
