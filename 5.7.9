@@ -1,0 +1,297 @@
+ public ActionResult ExportDynamicStaffDetail()
+ {
+
+     if (ConfigurationManager.AppSettings["Azure_Attachment"] == "1")
+     {
+         string employeecode = string.Empty;
+         string employeename = string.Empty;
+         string designation = string.Empty;
+         string department = string.Empty;
+         string email = string.Empty;
+         string username = string.Empty;
+         string employeeGroupName = string.Empty;
+         string Status = string.Empty;
+         string ComplianceStatus = string.Empty;
+         string isdelete = Convert.ToString(Request["IsDelete"]);
+
+         string orderby = string.Empty;
+         string ordertype = string.Empty;
+         string BankName = string.Empty;
+         string BankAddress = string.Empty;
+         string BankAccountName = string.Empty;
+         string BankAccountNo = string.Empty;
+         string BankAccShortCode = string.Empty;
+
+         BLEmployees objBL = new BLEmployees();
+
+         orderby = orderby.Replace("EmployeeName", "FirstName");
+
+         var employeeList = objBL.GetEmployeeListWithBankExport(employeecode, employeename, designation, department, email, username, employeeGroupName, Status, ComplianceStatus, isdelete, orderby, ordertype, BankName, BankAddress, BankAccountName, BankAccountNo, BankAccShortCode);
+
+         string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "ExportDynamicStaffDetails_" + DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss_fff") + ".xlsx");
+
+         if (!Directory.Exists(Path.GetDirectoryName(strExportPath)))
+         {
+             Directory.CreateDirectory(Path.GetDirectoryName(strExportPath));
+         }
+
+         if (employeeList.Count() > 0)
+         {
+             HSSFWorkbook workbook = new HSSFWorkbook();
+
+             ISheet Sheet = workbook.CreateSheet("Report");
+             IRow HeaderRow = Sheet.CreateRow(0);
+
+             // Defining a border
+             HSSFCellStyle rowStyles = (HSSFCellStyle)workbook.CreateCellStyle();
+             IFont rowfonts = workbook.CreateFont();
+
+             rowfonts.IsBold = true;
+             rowStyles.SetFont(rowfonts);
+
+             CreateCell(HeaderRow, 0, "First Name");
+             CreateCell(HeaderRow, 1, "Middle Name");
+             CreateCell(HeaderRow, 2, "Last Name");
+             CreateCell(HeaderRow, 3, "Birth Date");
+             CreateCell(HeaderRow, 4, "Department");
+             CreateCell(HeaderRow, 5, "Job Title");
+             CreateCell(HeaderRow, 6, "Line Manager Name");
+             CreateCell(HeaderRow, 7, "Joining Date");
+             CreateCell(HeaderRow, 8, "Gphc number");
+             CreateCell(HeaderRow, 9, "Gphc expiry date");
+             CreateCell(HeaderRow, 10, "Office email");
+             CreateCell(HeaderRow, 11, "Staff Xero Code");
+             CreateCell(HeaderRow, 12, "Bank Name");
+             CreateCell(HeaderRow, 13, "Bank Address");
+             CreateCell(HeaderRow, 14, "Bank Account Name");
+             CreateCell(HeaderRow, 15, "Bank Account No");
+             CreateCell(HeaderRow, 16, "Bank Acc Short Code");
+
+
+             // This Where the Data row starts from
+             int RowIndex = 1;
+
+             foreach (var dataEintity in employeeList)
+             {
+                 //Creating the CurrentDataRow
+                 IRow CurrentRow = Sheet.CreateRow(RowIndex);
+
+                 CreateCell(CurrentRow, 0, dataEintity.FirstName);
+                 CreateCell(CurrentRow, 1, dataEintity.MiddleName);
+                 CreateCell(CurrentRow, 2, dataEintity.LastName);
+                 CreateCell(CurrentRow, 3, dataEintity.BirthDate);
+                 CreateCell(CurrentRow, 4, dataEintity.Department);
+                 CreateCell(CurrentRow, 4, dataEintity.Designation);
+                 CreateCell(CurrentRow, 6, dataEintity.LineManagerName);
+                 CreateCell(CurrentRow, 7, dataEintity.JoiningDate);
+                 CreateCell(CurrentRow, 8, dataEintity.GPhCNo);
+                 CreateCell(CurrentRow, 9, dataEintity.GPHCRegistrationExpiryDate);
+                 CreateCell(CurrentRow, 10, dataEintity.Email);
+                 CreateCell(CurrentRow, 11, dataEintity.ContractorCode);
+                 CreateCell(CurrentRow, 12, dataEintity.BankName);
+                 CreateCell(CurrentRow, 13, dataEintity.BankAddress);
+                 CreateCell(CurrentRow, 14, dataEintity.BankAccountName);
+                 CreateCell(CurrentRow, 15, dataEintity.BankAccountNo);
+                 CreateCell(CurrentRow, 16, dataEintity.BankAccShortCode);
+
+                 RowIndex = RowIndex + 1;
+             }
+
+             // Write Excel to disk 
+             using (var fileData = new FileStream(strExportPath, FileMode.Create, FileAccess.Write))
+             {
+                 workbook.Write(fileData);
+             }
+         }
+
+
+         objBL.Dispose();
+         objBL = null;
+
+         return Json(Path.GetFileName(strExportPath.Trim()), JsonRequestBehavior.AllowGet);
+     }
+     else
+     {
+         string employeecode = string.Empty;
+         string employeename = string.Empty;
+         string designation = string.Empty;
+         string department = string.Empty;
+         string email = string.Empty;
+         string username = string.Empty;
+         string employeeGroupName = string.Empty;
+         string Status = string.Empty;
+         string ComplianceStatus = string.Empty;
+         string isdelete = Convert.ToString(Request["IsDelete"]);
+
+         string orderby = string.Empty;
+         string ordertype = string.Empty;
+         string BankName = string.Empty;
+         string BankAddress = string.Empty;
+         string BankAccountName = string.Empty;
+         string BankAccountNo = string.Empty;
+         string BankAccShortCode = string.Empty;
+
+         BLEmployees objBL = new BLEmployees();
+
+         orderby = orderby.Replace("EmployeeName", "FirstName");
+
+         string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "ExportDynamicStaffDetails" + ".xls");
+         if (Directory.Exists(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim())) == false)
+             Directory.CreateDirectory(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()));
+
+         var employeeList = objBL.GetEmployeeListWithBankExport(employeecode, employeename, designation, department, email, username, employeeGroupName, Status, ComplianceStatus, isdelete, orderby, ordertype, BankName, BankAddress, BankAccountName, BankAccountNo, BankAccShortCode);
+
+         if (employeeList.Count() > 0)
+         {
+             HSSFWorkbook workbook = new HSSFWorkbook();
+             HSSFFont myFont = (HSSFFont)workbook.CreateFont();
+             
+
+             ISheet Sheet = workbook.CreateSheet("Report");
+             //Creat The Headers of the excel
+             IRow HeaderRow = Sheet.CreateRow(0);
+
+             CreateCell(HeaderRow, 0, "First Name");
+             CreateCell(HeaderRow, 1, "Middle Name");
+             CreateCell(HeaderRow, 2, "Last Name");
+             CreateCell(HeaderRow, 3, "Birth Date");
+             CreateCell(HeaderRow, 4, "Department");
+             CreateCell(HeaderRow, 5, "Job Title");
+             CreateCell(HeaderRow, 6, "Line Manager Name");
+             CreateCell(HeaderRow, 7, "Joining Date");
+             CreateCell(HeaderRow, 8, "Gphc number");
+             CreateCell(HeaderRow, 9, "Gphc expiry date");
+             CreateCell(HeaderRow, 10, "Office email");
+             CreateCell(HeaderRow, 11, "Staff Xero Code");
+             CreateCell(HeaderRow, 12, "Bank Name");
+             CreateCell(HeaderRow, 13, "Bank Address");
+             CreateCell(HeaderRow, 14, "Bank Account Name");
+             CreateCell(HeaderRow, 15, "Bank Account No");
+             CreateCell(HeaderRow, 16, "Bank Acc Short Code");
+
+             int RowIndex = 1;
+             foreach (var dataEintity in employeeList)
+             {
+                 //Creating the CurrentDataRow
+                 IRow CurrentRow = Sheet.CreateRow(RowIndex);
+                 
+                 CreateCell(CurrentRow, 0, dataEintity.FirstName);
+                 CreateCell(CurrentRow, 1, dataEintity.MiddleName);
+                 CreateCell(CurrentRow, 2, dataEintity.LastName);
+                 CreateCell(CurrentRow, 3, dataEintity.BirthDate);
+                 CreateCell(CurrentRow, 4, dataEintity.Department);
+                 CreateCell(CurrentRow, 5, dataEintity.Designation);
+                 CreateCell(CurrentRow, 6, dataEintity.LineManagerName);
+                 CreateCell(CurrentRow, 7, dataEintity.JoiningDate);
+                 CreateCell(CurrentRow, 8, dataEintity.GPhCNo);
+                 CreateCell(CurrentRow, 9, dataEintity.GPHCRegistrationExpiryDate);
+                 CreateCell(CurrentRow, 10, dataEintity.Email);
+                 CreateCell(CurrentRow, 11, dataEintity.ContractorCode);
+
+
+                 CurrentRow.CreateCell(12).SetCellValue(dataEintity.BankName);
+
+                 ICellStyle rowStyles = workbook.CreateCellStyle();
+                 IFont rowfonts = workbook.CreateFont();
+
+                 rowfonts.IsBold = true;
+
+                 ICell cellObj = Sheet.GetRow(0).GetCell(12);
+                 if (cellObj != null)
+                 {
+                     cellObj.CellStyle = rowStyles;
+                 }
+
+
+
+
+
+
+
+                 //ICellStyle cellStyle = workbook.CreateCellStyle();
+                 //cellStyle.SetFont(myFont);
+
+                 //if (Convert.ToBoolean(dataEintity.IsBankNameModify))
+                 //{
+                 //    ICell cell = Sheet.GetRow(RowIndex).GetCell(12);
+                 //    if (cell != null)
+                 //    {
+                 //        cell.CellStyle = cellStyle;
+                 //    }
+                 //    CreateCell(CurrentRow, 12, dataEintity.BankName);
+                 //}
+
+
+
+                 //var bankNameCell = workbook.ce[row, 13];
+                 //bankNameCell.Value = bankName;
+                 //if (Convert.ToBoolean(dataEintity.IsBankNameModify))
+                 //{
+                 //    bankNameCell.Style.Font.Bold = true;
+                 //}
+
+                 ////  worksheet.Cells[row, 14].Value = b.BankAddress;
+
+                 //string bankAddress = b.BankAddress;
+                 //var bankBankAddressCell = worksheet.Cells[row, 14];
+                 //bankBankAddressCell.Value = bankAddress;
+                 //if (Convert.ToBoolean(b.IsBankAddressModify))
+                 //{
+                 //    bankBankAddressCell.Style.Font.Bold = true;
+                 //}
+
+                 ////  worksheet.Cells[row, 15].Value = b.BankAccountName;
+
+                 //string bankAccountName = b.BankAccountName;
+                 //var bankAccountNameCell = worksheet.Cells[row, 15];
+                 //bankAccountNameCell.Value = bankAccountName;
+                 //if (Convert.ToBoolean(b.IsBankAccountNameModify))
+                 //{
+                 //    bankAccountNameCell.Style.Font.Bold = true;
+                 //}
+
+                 ////  worksheet.Cells[row, 16].Value = b.BankAccountNo;
+
+                 //string bankAccountNo = b.BankAccountNo;
+                 //var bankAccountNoCell = worksheet.Cells[row, 16];
+                 //bankAccountNoCell.Value = bankAccountNo;
+                 //if (Convert.ToBoolean(b.IsBankAccountNoModify))
+                 //{
+                 //    bankAccountNoCell.Style.Font.Bold = true;
+                 //}
+
+                 ////  worksheet.Cells[row, 17].Value = b.BankAccShortCode;
+
+                 //string bankAccShortCode = b.BankAccShortCode;
+                 //var bankAccShortCodeCell = worksheet.Cells[row, 17];
+                 //bankAccShortCodeCell.Value = bankAccShortCode;
+                 //if (Convert.ToBoolean(b.IsBankAccShortCodeModify))
+                 //{
+                 //    bankAccShortCodeCell.Style.Font.Bold = true;
+                 //}
+
+
+
+
+                 //CreateCell(CurrentRow, 12, dataEintity.BankName);
+                 //CreateCell(CurrentRow, 13, dataEintity.BankAddress);
+                 //CreateCell(CurrentRow, 14, dataEintity.BankAccountName);
+                 //CreateCell(CurrentRow, 15, dataEintity.BankAccountNo);
+                 //CreateCell(CurrentRow, 16, dataEintity.BankAccShortCode);
+                 RowIndex = RowIndex + 1;
+             }
+
+                 // Write Excel to disk 
+             using (var fileData = new FileStream(strExportPath, FileMode.Create, FileAccess.Write))
+             {
+                 workbook.Write(fileData);
+             }
+         }
+
+         
+         objBL.Dispose();
+         objBL = null;
+
+         return Json(Path.GetFileName(strExportPath.Trim()), JsonRequestBehavior.AllowGet);
+     }
+ }
