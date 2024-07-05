@@ -1,0 +1,93 @@
+Here is the refactored `ExportDynamicStaffDetail` method into the structure of the `UploadCalendarExcel` method. This new method is named `UploadBankExcel`.
+
+```csharp
+public ResponseModel UploadBankExcel(string filePath, UploadFileModel request)
+{
+    try
+    {
+        var response = new ResponseModel();
+        BLEmployees objBL = new BLEmployees();
+        List<BankDetailModel> bankDetailList = new List<BankDetailModel>();
+
+        using (var fStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            fStream.Position = 0;
+            XSSFWorkbook objWorkbook = new XSSFWorkbook(fStream);
+            ISheet objWorksheet = objWorkbook.GetSheetAt(0);
+            IRow objHeader = objWorksheet.GetRow(0);
+            int totalRows = objWorksheet.LastRowNum;
+
+            for (int i = (objWorksheet.FirstRowNum + 1); i <= totalRows; i++)
+            {
+                BankDetailModel bankDetailModel = new BankDetailModel();
+                IRow objRow = objWorksheet.GetRow(i);
+
+                if (objRow != null)
+                {
+                    bankDetailModel.FirstName = Convert.ToString(objRow.GetCell(0)).Trim();
+                    bankDetailModel.MiddleName = Convert.ToString(objRow.GetCell(1)).Trim();
+                    bankDetailModel.LastName = Convert.ToString(objRow.GetCell(2)).Trim();
+                    bankDetailModel.BirthDate = Convert.ToString(objRow.GetCell(3)).Trim();
+                    bankDetailModel.Department = Convert.ToString(objRow.GetCell(4)).Trim();
+                    bankDetailModel.Designation = Convert.ToString(objRow.GetCell(5)).Trim();
+                    bankDetailModel.LineManagerName = Convert.ToString(objRow.GetCell(6)).Trim();
+                    bankDetailModel.JoiningDate = Convert.ToString(objRow.GetCell(7)).Trim();
+                    bankDetailModel.GPhCNo = Convert.ToString(objRow.GetCell(8)).Trim();
+                    bankDetailModel.GPHCRegistrationExpiryDate = Convert.ToString(objRow.GetCell(9)).Trim();
+                    bankDetailModel.Email = Convert.ToString(objRow.GetCell(10)).Trim();
+                    bankDetailModel.ContractorCode = Convert.ToString(objRow.GetCell(11)).Trim();
+                    bankDetailModel.BankName = Convert.ToString(objRow.GetCell(12)).Trim();
+                    bankDetailModel.BankAddress = Convert.ToString(objRow.GetCell(13)).Trim();
+                    bankDetailModel.BankAccountName = Convert.ToString(objRow.GetCell(14)).Trim();
+                    bankDetailModel.BankAccountNo = Convert.ToString(objRow.GetCell(15)).Trim();
+                    bankDetailModel.BankAccShortCode = Convert.ToString(objRow.GetCell(16)).Trim();
+
+                    // Insert the bank details into the database or perform any required processing.
+                    var isInserted = InsertBankDetails(bankDetailModel, request);
+
+                    if (isInserted)
+                    {
+                        response.success = true;
+                    }
+                }
+            }
+            response.Data = filePath;
+        }
+        return response;
+    }
+    catch (Exception ex)
+    {
+        throw;
+    }
+}
+
+private bool InsertBankDetails(BankDetailModel bankDetailModel, UploadFileModel request)
+{
+    // Implement your logic to save bankDetailModel to the database.
+    // Return true if the insertion is successful, otherwise false.
+    return true;
+}
+
+public class BankDetailModel
+{
+    public string FirstName { get; set; }
+    public string MiddleName { get; set; }
+    public string LastName { get; set; }
+    public string BirthDate { get; set; }
+    public string Department { get; set; }
+    public string Designation { get; set; }
+    public string LineManagerName { get; set; }
+    public string JoiningDate { get; set; }
+    public string GPhCNo { get; set; }
+    public string GPHCRegistrationExpiryDate { get; set; }
+    public string Email { get; set; }
+    public string ContractorCode { get; set; }
+    public string BankName { get; set; }
+    public string BankAddress { get; set; }
+    public string BankAccountName { get; set; }
+    public string BankAccountNo { get; set; }
+    public string BankAccShortCode { get; set; }
+}
+```
+
+This method reads the Excel file from the given `filePath`, processes each row to extract bank details, and inserts them into the database (or performs any required processing). The method returns a `ResponseModel` indicating the success of the operation. The actual insertion logic should be implemented in the `InsertBankDetails` method.
