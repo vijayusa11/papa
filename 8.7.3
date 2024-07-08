@@ -1,0 +1,350 @@
+USE [CPSIntranet_Beta]
+GO
+/****** Object:  StoredProcedure [dbo].[spGetEmployeeListWithBankExport]    Script Date: 08-07-2024 16:57:41 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+--exec [dbo].[spGetEmployeeListWithBankExport] 'FirstName  asc','','','','','','','','','','0',1,null
+
+
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+	@OrderBy varchar(1000), 
+	
+	@EmployeeCode nvarchar(20),	
+	@EmployeeName nvarchar(100),
+	@Designation nvarchar(100),
+	@DepartmentName nvarchar(100),
+	@EmailAddress varchar(100),
+	@Username nvarchar(50),	
+	@EmployeeGroupName nvarchar(100),	
+	@Status nvarchar(20),
+	@ComplianceStatus nvarchar(20),
+	@IsDelete nvarchar(1),
+	@employeeIds int,
+	@ViewerId int,
+	--@BankName nvarchar(400),
+	--@BankAddress nvarchar(1000),
+	--@BankAccountName nvarchar(400),
+	--@BankAccountNo nvarchar(200),
+	--@BankAccShortCode nvarchar(100),
+	@TotalCount int out
+)
+AS     
+BEGIN
+	SET NOCOUNT ON;
+
+	declare @IsLineManager bit;
+	declare @DepartmentId int;
+	declare @IsAdmin bit;
+
+	declare @Select varchar(8000);
+	declare @ColList varchar(8000);
+	declare @Where varchar(8000);
+	declare @i int; 
+	declare @i2 int;
+	declare @tmp varchar(8000);
+	declare @dec varchar(8000);
+	declare @f varchar(8000);
+	declare @d varchar(8000);
+	declare @Symbol char(2);
+	declare @SQL varchar(8000);
+	declare @Sort varchar(8000);
+	declare @strLen int;
+
+	
+	DECLARE @SQLString NVARCHAR(4000)
+	DECLARE @ParmDefinition NVARCHAR(4000)
+	DECLARE @IntVariable INT
+	DECLARE @Lastlname varchar(1000)
+
+	SELECT 
+		@IsAdmin = CASE WHEN R.RoleName='Admin' THEN 1 ELSE 0 END 
+	FROM Employees AS E 
+		LEFT JOIN Roles AS R ON R.RoleId = E.RoleId 
+	WHERE E.EmployeeId= @ViewerId
+
+	SELECT @IsLineManager=ISNULL(IsLineManager,0) FROM Employees WHERE EmployeeId = @ViewerId
+
+	;WITH CTE AS (SELECT EmployeeId,SUM(CAST(Split.c.value('.', 'VARCHAR(100)') AS INT)) AS TotalScore FROM(
+	SELECT EmployeeId,CAST ('<M>' + REPLACE(Score, ',', '</M><M>') + '</M>' AS XML) AS Score FROM(
+	SELECT FilledId,EmployeeId,QuestionId,Type,REPLACE(Score,',-5','') AS Score,FilledBy,CreatedDate FROM
+	(select FilledId,EmployeeId,QuestionId,REPLACE(Type,'|',',') AS Type, REPLACE(Score,'|',',') AS Score,FilledBy,CreatedDate from PDRFilledDetail) A)B
+	)AS C CROSS APPLY Score.nodes ('/M') AS Split(C)
+	GROUP BY EmployeeId)
+
+	SELECT EmployeeId,TotalScore INTO #tempEmpTotalPDRScore FROM CTE
+
+	set @Select = 'SELECT DISTINCT EmployeeId,EmployeeCode,FirstName,MiddleName,
+									LastName,BirthDate,Department,Designation,
+									Department,LineManagerName,NINumber,type,
+									JoiningDate,Address,GPhCNo,NonMedicalPescriber,
+									Email,SmartcardNo,Username,EmployeeGroupName,
+									Status,ComplianceStatus,Question,GPHCRegistrationExpiryDate,
+									DBSRegistrationExpiryDate,DBSNo,ContractorCode,BankName,
+									BankAddress,BankAccountName,BankAccountNo,BankAccShortCode,
+
+									IsBankNameModify,IsBankAccountNoModify,IsBankAccountNameModify,IsBankAccShortCodeModify,IsBankAddressModify,
+
+									PFDType,REPLACE(Score,'',-5'','''') AS PDRScore,A.TotalScore,FilledDate 
+					FROM 
+						(SELECT E.EmployeeId as EmployeeId,ISNULL(E.EmployeeCode,0) AS EmployeeCode, '	
+	set @Select = @Select + ' 	ISNULL(E.FirstName,'''') AS FirstName ,'	
+	set @Select = @Select + ' 	ISNULL(E.MiddleName,'''') AS MiddleName ,'	
+	set @Select = @Select + ' 	ISNULL(E.LastName,'''') AS LastName ,'	
+	set @Select = @Select + ' 	case when ISNULL(E.BirthDate,'''') = '''' then '''' else convert(varchar(12),E.BirthDate,103) end as BirthDate,'	
+	set @Select = @Select + ' 	ISNULL(E.DepartmentName,'''') Department, '		
+	set @Select = @Select + ' 	ISNULL(E.Designation,'''') Designation,'	
+	set @Select = @Select + ' 	ISNULL(LI.FirstName,'''') + '' '' + ISNULL(LI.LastName,'''') as LineManagerName ,'		
+	set @Select = @Select + ' 	ISNULL(E.NINumber,'''') NINumber,'	
+	set @Select = @Select + ' 	ISNULL(E.type,'''') type,'	
+	set @Select = @Select + ' 	case when ISNULL(E.JoiningDate,'''') = '''' then '''' else convert(varchar(12),E.JoiningDate,103) end as JoiningDate,'	
+	set @Select = @Select + ' 	ISNULL(E.Address,'''') Address,'	
+	set @Select = @Select + ' 	ISNULL(E.GPhCNo,'''') GPhCNo,'	
+	set @Select = @Select + ' 	case when isnull(E.NonMedicalPescriber,''0'') = 0 then ''No'' else ''Yes'' end as NonMedicalPescriber,'	
+	set @Select = @Select + ' 	ISNULL(E.EmailAddress,'''') Email, '	
+	set @Select = @Select + ' 	ISNULL(E.SmartcardNo,'''') SmartcardNo,'	
+	set @Select = @Select + ' 	ISNULL(E.UserName,'''') Username, '			
+	set @Select = @Select + ' 	ISNULL(EG.GroupName,'''') EmployeeGroupName, '	
+	set @Select = @Select + ' 	ISNULL(E.StatusName,'''') Status, '		
+	set @Select = @Select + ' 	Cast(ISNULL(E.GPHCRegistrationExpiryDate,'''') as varchar(20)) GPHCRegistrationExpiryDate, '	
+	set @Select = @Select + ' 	Cast(ISNULL(E.DBSRegistrationExpiryDate,'''') as varchar(20)) DBSRegistrationExpiryDate, '
+	set @Select = @Select + ' 	ISNULL(E.DBSNo,'''') DBSNo, '
+	set @Select = @Select + ' 	ISNULL(E.ContractorCode,'''') ContractorCode, '
+	set @Select = @Select + ' 	ISNULL(E.BankName,'''') AS BankName ,'
+	set @Select = @Select + ' 	ISNULL(E.BankAddress,'''') AS BankAddress ,'
+	set @Select = @Select + ' 	ISNULL(E.BankAccountName,'''') AS BankAccountName ,'
+	set @Select = @Select + ' 	ISNULL(E.BankAccountNo,'''') AS BankAccountNo ,'
+	set @Select = @Select + ' 	ISNULL(E.BankAccShortCode,'''') AS BankAccShortCode ,'
+
+	set @Select = @Select + ' 	(case when DATEDIFF(day, E.ModifyBankDate, GETDATE()) < 45 then (case when E.ModifyBankFields like ''%BankName%'' then ''True'' else ''False'' end) else ''False'' end) IsBankNameModify, '
+	set @Select = @Select + ' 	(case when DATEDIFF(day, E.ModifyBankDate, GETDATE()) < 45 then (case when E.ModifyBankFields like ''%BankAccountNo%'' then ''True'' else ''False'' end) else ''False'' end) as IsBankAccountNoModify, '
+	set @Select = @Select + ' 	(case when DATEDIFF(day, E.ModifyBankDate, GETDATE()) < 45 then (case when E.ModifyBankFields like ''%BankAccountName%'' then ''True'' else ''False'' end) else ''False'' end) as IsBankAccountNameModify, '
+	set @Select = @Select + ' 	(case when DATEDIFF(day, E.ModifyBankDate, GETDATE()) < 45 then (case when E.ModifyBankFields like ''%BankAccShortCode%'' then ''True'' else ''False'' end) else ''False'' end) as IsBankAccShortCodeModify, '
+	set @Select = @Select + ' 	(case when DATEDIFF(day, E.ModifyBankDate, GETDATE()) < 45 then (case when E.ModifyBankFields like ''%BankAddress%'' then ''True'' else ''False'' end) else ''False'' end) as IsBankAddressModify, '
+
+	set @Select = @Select + ' 	dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') ComplianceStatus,PQ.Question,REPLACE(PFD.Type,''|'','','') AS PFDType, REPLACE(PFD.Score,''|'','','') AS Score,C.TotalScore,PFD.CreatedDate AS FilledDate '		
+	set @Select = @Select + ' 	FROM Employees AS E	'
+	set @Select = @Select + ' 	LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+	set @Select = @Select + ' 	LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId 
+								LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId
+								LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId 
+								LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId 	
+								LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId'
+	
+	if @IsDelete<>''
+	begin
+		if @IsDelete='0'
+		begin
+			set @Select = @Select + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'		
+		end
+		else
+		begin
+			set @Select = @Select + ' 	WHERE E.IsDelete = 1 OR E.STATUSID = 2'
+		end
+	end
+	else
+	begin
+		set @Select = @Select + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'		
+	end
+	
+	if @IsAdmin <> 1
+	begin
+		if @IsLineManager = 1
+		begin
+			set @SELECT = @SELECT + ' and E.LineManagerId='+ convert(varchar,@ViewerId) + ''
+		end
+	end
+	
+	if @employeeIds <>''
+	begin
+		set @Select = @Select + ' and E.EmployeeId like ''%'+ convert(varchar,@employeeIds) + ''
+	end 	
+
+	if @EmployeeCode<>''
+	begin
+		set @Select = @Select + ' and E.EmployeeCode like ''%'+ convert(varchar,@EmployeeCode) +'%'' '
+	end 	
+	if @EmployeeName<>''
+	begin
+		set @Select = @Select + ' and (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) like ''%'+ convert(varchar,@EmployeeName) +'%'')'
+	end
+	--if @BankName<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankName like ''%'+ convert(varchar,@BankName) +'%'' '
+	--end
+	--if @BankAddress<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAddress like ''%'+ convert(varchar,@BankAddress) +'%'' '
+	--end
+	--if @BankAccountName<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccountName like ''%'+ convert(varchar,@BankAccountName) +'%'' '
+	--end
+	--if @BankAccountNo<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccountNo like ''%'+ convert(varchar,@BankAccountNo) +'%'' '
+	--end
+	--if @BankAccShortCode<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccShortCode like ''%'+ convert(varchar,@BankAccShortCode) +'%'' '
+	--end
+	if @Designation<>''
+	begin
+		set @Select = @Select + ' and E.Designation like ''%'+ convert(varchar,@Designation) +'%'' '
+	end
+	if @DepartmentName<>''
+	begin
+		set @Select = @Select + ' and E.DepartmentName like ''%'+ convert(varchar,@DepartmentName) +'%'' '
+	end
+	if @EmailAddress<>''
+	begin
+		set @Select = @Select + ' and E.EmailAddress like ''%'+ convert(varchar,@EmailAddress) +'%'' '
+	end
+	if @Username<>''
+	begin			
+		set @Select = @Select + ' and E.Username like ''%'+ convert(varchar,@Username) +'%'' '
+	end
+	if @EmployeeGroupName <> ''
+	begin
+		set @Select = @Select + ' and EG.GroupName like ''%' + convert(varchar,@EmployeeGroupName) + '%'' '
+	end
+	if @Status<>''
+	begin			
+		set @Select = @Select + ' and E.StatusName like ''%'+ convert(varchar,@Status) +'%'' '
+	end
+	if @ComplianceStatus <>''
+	begin			
+		set @Select = @Select + ' and (case when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 1 then '
+			set @Select = @Select + ' ''Compliant''  '
+			set @Select = @Select + '      when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 2 then '
+			set @Select = @Select + ' ''Non-Compliant''  '
+			set @Select = @Select + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 3 then  '
+			set @Select = @Select + ' ''About to Expire'' '
+			set @Select = @Select + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 4 then '
+			set @Select = @Select + ' ''CFMM'' '
+			set @Select = @Select + ' end) 	like ''%'+ convert(varchar,@ComplianceStatus) +'%''	'
+	end
+	 
+	--print @Select
+	SET @Select = @Select + ') A ' 
+
+	set @SQLString = N'select  @LastlnameOUT = count(E.EmployeeId) '	
+	set @SQLString = @SQLString + ' 	FROM Employees AS E	'
+	set @SQLString = @SQLString + ' 	LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+	set @SQLString = @SQLString + ' 	LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId '
+
+	if @IsDelete<>''
+	begin
+		if @IsDelete='0'
+		begin
+			set @SQLString = @SQLString + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'
+		end
+		else
+		begin
+			set @SQLString = @SQLString + ' 	WHERE E.IsDelete = 1 OR E.STATUSID = 2'
+		end
+	end
+	else
+	begin
+		set @SQLString = @SQLString + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'
+	end
+
+	if @IsAdmin <> 1
+	begin
+		if @IsLineManager = 1
+		begin
+			set @SQLString = @SQLString + ' and E.LineManagerId='+ convert(varchar,@ViewerId) + ''
+		end
+	end
+
+	if @employeeIds <>''
+	begin
+		set @Select = @Select + ' and E.EmployeeId like ''%'+ convert(varchar,@employeeIds) + ''
+	end 	
+
+	if @EmployeeCode<>''
+	begin
+		set @SQLString = @SQLString + ' and E.EmployeeCode like ''%'+ convert(varchar,@EmployeeCode) +'%'' '
+	end 	
+	if @EmployeeName<>''
+	begin
+		set @SQLString = @SQLString + ' and (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) like ''%'+ convert(varchar,@EmployeeName) +'%'')'
+	end
+	--if @BankName<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankName like ''%'+ convert(varchar,@BankName) +'%'' '
+	--end
+	--if @BankAddress<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAddress like ''%'+ convert(varchar,@BankAddress) +'%'' '
+	--end
+	--if @BankAccountName<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccountName like ''%'+ convert(varchar,@BankAccountName) +'%'' '
+	--end
+	--if @BankAccountNo<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccountNo like ''%'+ convert(varchar,@BankAccountNo) +'%'' '
+	--end
+	--if @BankAccShortCode<>''
+	--begin
+	--	set @Select = @Select + ' and E.BankAccShortCode like ''%'+ convert(varchar,@BankAccShortCode) +'%'' '
+	--end
+	if @Designation<>''
+	begin
+		set @SQLString = @SQLString + ' and E.Designation like ''%'+ convert(varchar,@Designation) +'%'' '
+	end
+	if @DepartmentName<>''
+	begin
+		set @SQLString = @SQLString + ' and E.DepartmentName like ''%'+ convert(varchar,@DepartmentName) +'%'' '
+	end
+	if @EmailAddress<>''
+	begin
+		set @SQLString = @SQLString + ' and E.EmailAddress like ''%'+ convert(varchar,@EmailAddress) +'%'' '
+	end
+	if @Username<>''
+	begin			
+		set @SQLString = @SQLString + ' and E.Username like ''%'+ convert(varchar,@Username) +'%'' '
+	end
+	if @EmployeeGroupName <> ''
+	begin
+		set @SQLString = @SQLString + ' and EG.GroupName like ''%' + convert(varchar,@EmployeeGroupName) + '%'' '
+	end
+	if @Status<>''
+	begin			
+		set @SQLString = @SQLString + ' and E.StatusName like ''%'+ convert(varchar,@Status) +'%'' '
+	end
+	if @ComplianceStatus <>''
+	begin			
+		set @SQLString = @SQLString + ' and (case when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 1 then '
+			set @SQLString = @SQLString + ' ''Compliant''  '
+			set @SQLString = @SQLString + '      when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 2 then '
+			set @SQLString = @SQLString + ' ''Non-Compliant''  '
+			set @SQLString = @SQLString + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 3 then  '
+			set @SQLString = @SQLString + ' ''About to Expire'' '
+			set @SQLString = @SQLString + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 4 then '
+			set @SQLString = @SQLString + ' ''CFMM'' '
+			set @SQLString = @SQLString + ' end) 	like ''%'+ convert(varchar,@ComplianceStatus) +'%''	'
+	end
+
+
+	SET @ParmDefinition = N'@level int,@LastlnameOUT varchar(30) OUTPUT'
+	SET @IntVariable = 35
+
+
+	EXECUTE sp_executesql
+	@SQLString,
+	@ParmDefinition,
+	@level = @IntVariable,
+	@LastlnameOUT=@Lastlname OUTPUT
+	set @TotalCount=@Lastlname
+
+	exec(@Select) 
+	PRINT @Select
+	DROP TABLE #tempEmpTotalPDRScore
+END
+
+here i am getting @employeeIds in comma seperated values so how can i write
