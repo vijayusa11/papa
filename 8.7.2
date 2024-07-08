@@ -1,0 +1,99 @@
+To modify your code so that the "Bank Name" cell is bold if `IsBankNameModify` is true, you need to create and apply a bold cell style specifically for these cells. Here is how you can modify your `ExportDynamicStaffDetail` method to achieve this:
+
+```csharp
+public ActionResult ExportDynamicStaffDetail()
+{
+    if (ConfigurationManager.AppSettings["Azure_Attachment"] == "1")
+    {
+        // ... [your existing code] ...
+
+        if (employeeList.Count() > 0)
+        {
+            HSSFWorkbook workbook = new HSSFWorkbook();
+            ISheet sheet = workbook.CreateSheet("Report");
+            IRow headerRow = sheet.CreateRow(0);
+
+            // Define the bold style
+            ICellStyle boldStyle = workbook.CreateCellStyle();
+            IFont boldFont = workbook.CreateFont();
+            boldFont.IsBold = true;
+            boldStyle.SetFont(boldFont);
+
+            // Create header cells
+            CreateCell(headerRow, 0, "First Name");
+            CreateCell(headerRow, 1, "Middle Name");
+            CreateCell(headerRow, 2, "Last Name");
+            CreateCell(headerRow, 3, "Birth Date");
+            CreateCell(headerRow, 4, "Department");
+            CreateCell(headerRow, 5, "Job Title");
+            CreateCell(headerRow, 6, "Line Manager Name");
+            CreateCell(headerRow, 7, "Joining Date");
+            CreateCell(headerRow, 8, "Gphc number");
+            CreateCell(headerRow, 9, "Gphc expiry date");
+            CreateCell(headerRow, 10, "Office email");
+            CreateCell(headerRow, 11, "Staff Xero Code");
+            CreateCell(headerRow, 12, "Bank Name");
+            CreateCell(headerRow, 13, "Bank Address");
+            CreateCell(headerRow, 14, "Bank Account Name");
+            CreateCell(headerRow, 15, "Bank Account No");
+            CreateCell(headerRow, 16, "Bank Acc Short Code");
+
+            int rowIndex = 1;
+
+            foreach (var dataEntity in employeeList)
+            {
+                IRow currentRow = sheet.CreateRow(rowIndex);
+
+                CreateCell(currentRow, 0, dataEntity.FirstName);
+                CreateCell(currentRow, 1, dataEntity.MiddleName);
+                CreateCell(currentRow, 2, dataEntity.LastName);
+                CreateCell(currentRow, 3, dataEntity.BirthDate);
+                CreateCell(currentRow, 4, dataEntity.Department);
+                CreateCell(currentRow, 5, dataEntity.Designation);
+                CreateCell(currentRow, 6, dataEntity.LineManagerName);
+                CreateCell(currentRow, 7, dataEntity.JoiningDate);
+                CreateCell(currentRow, 8, dataEntity.GPhCNo);
+                CreateCell(currentRow, 9, dataEntity.GPHCRegistrationExpiryDate);
+                CreateCell(currentRow, 10, dataEntity.Email);
+                CreateCell(currentRow, 11, dataEntity.ContractorCode);
+
+                // Apply bold style if IsBankNameModify is true
+                ICell bankNameCell = currentRow.CreateCell(12);
+                bankNameCell.SetCellValue(dataEntity.BankName);
+                if (Convert.ToBoolean(dataEntity.IsBankNameModify))
+                {
+                    bankNameCell.CellStyle = boldStyle;
+                }
+
+                CreateCell(currentRow, 13, dataEntity.BankAddress);
+                CreateCell(currentRow, 14, dataEntity.BankAccountName);
+                CreateCell(currentRow, 15, dataEntity.BankAccountNo);
+                CreateCell(currentRow, 16, dataEntity.BankAccShortCode);
+
+                rowIndex++;
+            }
+
+            using (var fileData = new FileStream(strExportPath, FileMode.Create, FileAccess.Write))
+            {
+                workbook.Write(fileData);
+            }
+        }
+
+        objBL.Dispose();
+        objBL = null;
+
+        return Json(Path.GetFileName(strExportPath.Trim()), JsonRequestBehavior.AllowGet);
+    }
+    else
+    {
+        // ... [your existing code for the else block] ...
+    }
+}
+```
+
+### Explanation:
+1. **Define the Bold Style**: Before the loop, create a cell style with bold font.
+2. **Check `IsBankNameModify`**: Inside the loop, create a cell for "Bank Name" and apply the bold style if `IsBankNameModify` is true.
+3. **Apply the Style**: Set the `CellStyle` of the cell to the bold style conditionally based on `IsBankNameModify`.
+
+This way, the "Bank Name" cell will be bold if the `IsBankNameModify` property is true for that particular row.
