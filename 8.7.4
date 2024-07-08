@@ -1,0 +1,101 @@
+To rewrite the stored procedure without using the function `dbo.fncGetEmployeeComplianceStatus`, you need to directly include the logic of this function within the stored procedure itself. However, since the function's logic isn't provided, I will assume its behavior based on typical compliance status calculations. You'll need to replace my assumptions with the actual logic from your `fncGetEmployeeComplianceStatus` function.
+
+Here's a rewritten version of your stored procedure:
+
+```sql
+USE [CPSIntranet_Beta]
+GO
+/****** Object:  StoredProcedure [dbo].[spGetEmployeeListWithBankExport]    Script Date: 08-07-2024 16:57:41 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+	@OrderBy varchar(1000), 
+	@EmployeeCode nvarchar(20),	
+	@EmployeeName nvarchar(100),
+	@Designation nvarchar(100),
+	@DepartmentName nvarchar(100),
+	@EmailAddress varchar(100),
+	@Username nvarchar(50),	
+	@EmployeeGroupName nvarchar(100),	
+	@Status nvarchar(20),
+	@ComplianceStatus nvarchar(20),
+	@IsDelete nvarchar(1),
+	@employeeIds nvarchar(max),
+	@ViewerId int,
+	@TotalCount int out
+)
+AS     
+BEGIN
+	SET NOCOUNT ON;
+
+	declare @IsLineManager bit;
+	declare @DepartmentId int;
+	declare @IsAdmin bit;
+
+	declare @Select varchar(8000);
+	declare @ColList varchar(8000);
+	declare @Where varchar(8000);
+	declare @i int; 
+	declare @i2 int;
+	declare @tmp varchar(8000);
+	declare @dec varchar(8000);
+	declare @f varchar(8000);
+	declare @d varchar(8000);
+	declare @Symbol char(2);
+	declare @SQL varchar(8000);
+	declare @Sort varchar(8000);
+	declare @strLen int;
+
+	DECLARE @SQLString NVARCHAR(4000)
+	DECLARE @ParmDefinition NVARCHAR(4000)
+	DECLARE @IntVariable INT
+	DECLARE @Lastlname varchar(1000)
+
+	SELECT 
+		@IsAdmin = CASE WHEN R.RoleName='Admin' THEN 1 ELSE 0 END 
+	FROM Employees AS E 
+		LEFT JOIN Roles AS R ON R.RoleId = E.RoleId 
+	WHERE E.EmployeeId= @ViewerId
+
+	SELECT @IsLineManager=ISNULL(IsLineManager,0) FROM Employees WHERE EmployeeId = @ViewerId
+
+	;WITH CTE AS (SELECT EmployeeId,SUM(CAST(Split.c.value('.', 'VARCHAR(100)') AS INT)) AS TotalScore FROM(
+	SELECT EmployeeId,CAST ('<M>' + REPLACE(Score, ',', '</M><M>') + '</M>' AS XML) AS Score FROM(
+	SELECT FilledId,EmployeeId,QuestionId,Type,REPLACE(Score,',-5','') AS Score,FilledBy,CreatedDate FROM
+	(select FilledId,EmployeeId,QuestionId,REPLACE(Type,'|',',') AS Type, REPLACE(Score,'|',',') AS Score,FilledBy,CreatedDate from PDRFilledDetail) A)B
+	)AS C CROSS APPLY Score.nodes ('/M') AS Split(C)
+	GROUP BY EmployeeId)
+
+	SELECT EmployeeId,TotalScore INTO #tempEmpTotalPDRScore FROM CTE
+
+	set @Select = 'SELECT DISTINCT EmployeeId,EmployeeCode,FirstName,MiddleName,
+									LastName,BirthDate,Department,Designation,
+									Department,LineManagerName,NINumber,type,
+									JoiningDate,Address,GPhCNo,NonMedicalPescriber,
+									Email,SmartcardNo,Username,EmployeeGroupName,
+									Status,ComplianceStatus,Question,GPHCRegistrationExpiryDate,
+									DBSRegistrationExpiryDate,DBSNo,ContractorCode,BankName,
+									BankAddress,BankAccountName,BankAccountNo,BankAccShortCode,
+
+									IsBankNameModify,IsBankAccountNoModify,IsBankAccountNameModify,IsBankAccShortCodeModify,IsBankAddressModify,
+
+									PFDType,REPLACE(Score,'',-5'','''') AS PDRScore,A.TotalScore,FilledDate 
+					FROM 
+						(SELECT E.EmployeeId as EmployeeId,ISNULL(E.EmployeeCode,0) AS EmployeeCode, '	
+	set @Select = @Select + ' 	ISNULL(E.FirstName,'''') AS FirstName ,'	
+	set @Select = @Select + ' 	ISNULL(E.MiddleName,'''') AS MiddleName ,'	
+	set @Select = @Select + ' 	ISNULL(E.LastName,'''') AS LastName ,'	
+	set @Select = @Select + ' 	case when ISNULL(E.BirthDate,'''') = '''' then '''' else convert(varchar(12),E.BirthDate,103) end as BirthDate,'	
+	set @Select = @Select + ' 	ISNULL(E.DepartmentName,'''') Department, '		
+	set @Select = @Select + ' 	ISNULL(E.Designation,'''') Designation,'	
+	set @Select = @Select + ' 	ISNULL(LI.FirstName,'''') + '' '' + ISNULL(LI.LastName,'''') as LineManagerName ,'		
+	set @Select = @Select + ' 	ISNULL(E.NINumber,'''') NINumber,'	
+	set @Select = @Select + ' 	ISNULL(E.type,'''') type,'	
+	set @Select = @Select + ' 	case when ISNULL(E.JoiningDate,'''') = '''' then '''' else convert(varchar(12),E.JoiningDate,103) end as JoiningDate,'	
+	set @Select = @Select + ' 	ISNULL(E.Address,'''') Address,'	
+	set @Select = @Select + ' 	ISNULL(E.GPhCNo,'''') GPhCNo,'	
+	set @Select = @Select + ' 	case when isnull(E.NonMedicalPescriber,''0'') = 0 then ''No'' else ''Yes'' end as NonMedicalPescriber,'
