@@ -1,0 +1,35 @@
+To handle `@employeeIds` as a comma-separated list, you'll need to modify the WHERE clause to use `CHARINDEX` or a string-splitting function. Here's the modified section of your code where `@employeeIds` is used:
+
+Replace this line:
+```sql
+if @employeeIds <>''
+begin
+    set @Select = @Select + ' and E.EmployeeId like ''%'+ convert(varchar,@employeeIds) + '''
+end
+```
+
+With this line to handle comma-separated `@employeeIds`:
+```sql
+if @employeeIds IS NOT NULL AND @employeeIds <> ''
+begin
+    set @Select = @Select + ' and (',' + @employeeIds + ',' like '%,' + CAST(E.EmployeeId AS VARCHAR) + ',%')'
+end
+```
+
+Similarly, for the counting logic, replace this line:
+```sql
+if @employeeIds <>''
+begin
+    set @SQLString = @SQLString + ' and E.EmployeeId like ''%'+ convert(varchar,@employeeIds) + '''
+end
+```
+
+With this line:
+```sql
+if @employeeIds IS NOT NULL AND @employeeIds <> ''
+begin
+    set @SQLString = @SQLString + ' and (',' + @employeeIds + ',' like '%,' + CAST(E.EmployeeId AS VARCHAR) + ',%')'
+end
+```
+
+This modification ensures that `@employeeIds` can be a comma-separated list and each `EmployeeId` will be checked against this list.
