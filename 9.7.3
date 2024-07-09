@@ -1,0 +1,26 @@
+function ExportGridDatas(data) {
+    debugger
+
+    $.ajax({
+        type: "POST",
+        url: '../Employee/ExportDynamicStaffDetail',
+        data: { "SelectedEmployeesIds": $("#hdn_selectedEmployees").val() },
+        accepts: { text: "application/json" },
+        success: function (response) {
+            debugger
+            let IsAzure = $("#HndIsAzure_AttachmentID").val();
+            if (IsAzure == "1") {
+                window.location = "../Common/GetAzureDocument?filePath=Uploaded/Temp/1/" + response + "";
+            }
+            else {
+                window.location = "../Uploaded/Temp/1/" + response;   
+            }
+                      
+            $("#divloading").hide();
+        }
+    });
+
+    //loademployeedata();
+}
+
+want to reset SelectedEmployeesIds and unselect SelectedEmployeesIds next time when selecting another SelectedEmployeesIds and unselect SelectedEmployeesIds
