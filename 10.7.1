@@ -1,0 +1,48 @@
+function ExportGridDatas(data) {
+     debugger
+
+     $.ajax({
+         type: "POST",
+         url: '../Employee/ExportDynamicStaffDetail',
+         data: { "SelectedEmployeesIds": $("#hdn_selectedEmployees").val() },
+         accepts: { text: "application/json" },
+         success: function (response) {
+             debugger
+             if (response.status = "success") {
+                 let IsAzure = $("#HndIsAzure_AttachmentID").val();
+                 if (IsAzure == "1") {
+                     window.location = "../Common/GetAzureDocument?filePath=Uploaded/Temp/1/" + response.FileName + "";
+                 }
+                 else {
+                     window.location = "../Uploaded/Temp/1/" + response.FileName;
+                 }
+             } else {
+
+             }
+            
+                       
+             $("#divloading").hide();
+
+         }
+     });
+
+.....................
+         function OnSelectEmployee(selectedEmployeeId) {
+        debugger
+
+        empIds.push(selectedEmployeeId);
+        $("#hdn_selectedEmployees").val(empIds.join(","));
+       
+
+    }
+
+    ............................
+
+     strreturn = strreturn + "					<td><input type=\"checkbox\" onchange=\"OnSelectEmployee(" + b.EmployeeId  + ")\" class=\"chkdownloaddoc\" id=\"" + b.EmployeeId + "\" /></td>" + Environment.NewLine;
+
+     
+
+when i am going to select check box ids are get into data but when going to unselect check box ids data not going to reset.
+
+Please write for to reset data when going to unselect checkbox selection 	 
+
