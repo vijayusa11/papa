@@ -1,0 +1,74 @@
+
+if EmployeeName, ProjectName, PracticeName, CreatedDate are same then duplicate row data will not export and if any of among them
+will change data will export to a new row. 
+
+
+if (oList != null)
+{
+
+    foreach (var oEintity in oList)
+    {
+        strData = string.Empty;
+        strData += Common.GetExportString("") + ",";
+        strData += Common.GetExportString(oEintity.TimesheetDate.ToString("dd/MM/yyyy")) + ",";
+        strData += Common.GetExportString(oEintity.EmployeeName) + ",";
+        strData += Common.GetExportString(oEintity.ProjectName) + ",";
+        strData += Common.GetExportString(oEintity.PracticeName) + ",";
+        strData += Common.GetExportString(oEintity.CreatedDate.ToString()) + ",";
+
+        // Vijay 14
+        if (Convert.ToInt32(TimesheetStatusId) != (int)EnumTimesheetStatuses.DraftNotSubmitted)
+        {
+            strData += Common.GetExportString(Convert.ToString(oEintity.SubmittedDate)) + ",";
+            strData += Common.GetExportString(oEintity.TotalHours.ToString()) + ",";
+        }                                        
+        //strData += Common.GetExportString(oEintity.RateType) + ",";
+        
+        //strData += Common.GetExportString(oEintity.TotalMins.ToString()) + ",";
+        strData += Common.GetExportString(oEintity.Rate.ToString()) + ",";
+
+        // Vijay 14
+        if (Convert.ToInt32(TimesheetStatusId) != (int)EnumTimesheetStatuses.DraftNotSubmitted)
+        {
+            strData += Common.GetExportString(oEintity.TotalRate.ToString()) + ",";
+        }
+        if (Convert.ToInt32(TimesheetStatusId) == Convert.ToInt32(CPSIntranet.Model.EnumTimesheetStatuses.Invoiced))
+        {
+            strData += Common.GetExportString(oEintity.ProjectCode.ToString()) + ",";
+            strData += Common.GetExportString(oEintity.ProjectCategory.ToString()) + ",";
+            strData += Common.GetExportString(oEintity.ContractorCode.ToString()) + ",";
+
+            if (oEintity.ClinicianTypeId > 0 || oEintity.ClinicianTypeId != null)
+            {
+                string ClinicianType = string.Empty;
+
+                ClinicianType = getClinicianType(oEintity.ClinicianTypeId);
+                strData += Common.GetExportString(ClinicianType) + ",";
+            }
+            else
+            {
+                strData += Common.GetExportString("") + ",";
+            }
+
+            strData += Common.GetExportString(oEintity.Typeofclient.ToString()) + ","; // Vijay
+
+        }
+
+
+
+        if (Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.All)
+        {
+            strData += Common.GetExportString(oEintity.Status.ToString()) + ",";
+        }
+        if (Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Authorised)
+        {
+            strData += Common.GetExportString(oEintity.AuthoriserName.ToString()) + ",";
+            strData += Common.GetExportString(oEintity.AuthorisedDate.Value.ToString("dd/MM/yyyy hh:mm tt")) + ",";
+        }
+        sw.Write(strData.Substring(0, strData.Length - 1));
+        sw.Write(sw.NewLine);
+    }
+    sw.Close();
+    strreturn = Path.GetFileName(strExportPath.Trim());
+}
+
