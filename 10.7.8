@@ -1,0 +1,100 @@
+To implement a condition that excludes timesheet data if the employee is on leave during the specified timesheet dates, you can modify the `WHERE` clause of the main query to check against the `LeaveAssign` table. If the timesheet date falls within the `FromDate` and `ToDate` of any leave record for the employee, that record should be excluded from the result set.
+
+Here is how you can adjust the `SELECT` statement within the stored procedure to incorporate this logic:
+
+1. Add a `LEFT JOIN` with the `LeaveAssign` table.
+2. Add a condition in the `WHERE` clause to exclude timesheet records that overlap with the leave periods.
+
+```sql
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListStatusWise]
+(
+	@OrderBy varchar(1000), 
+	@StartRow int, 
+	@EndRow int,
+	@EmployeeName nvarchar(100),
+	@TimesheetDate nvarchar(10),
+	@ProjectName nvarchar(100),
+	@PracticeName nvarchar(100),
+	@TotalHours nvarchar(10),
+	@TotalMins nvarchar(20),
+	@Rate nvarchar(5),
+	@TotalRate nvarchar(10),
+	@RateTypeId nvarchar(10),
+	@WorkTypeId nvarchar(10),
+	@Status nvarchar(50),
+	@FromDate nvarchar(10),
+	@ToDate nvarchar(10),
+	@TimesheetStatusId nvarchar(10),
+	@AuthoriserName nvarchar(100),
+	@AuthorisedDate nvarchar(20),
+	@CreatedDate nvarchar(20),
+	@SubmittedDate nvarchar(20),
+	@EmployeeId nvarchar(10),
+	@ViewerId int,
+	@ForEmployee bit = 0,
+	@mystaff bit = 0,
+	@TotalCount int out
+)
+AS     
+BEGIN
+	SET NOCOUNT ON;
+
+	DECLARE @IsLineManager bit;
+	DECLARE @IsFinanceController bit;
+	DECLARE @IsAdmin bit;
+	DECLARE @SELECT varchar(8000);
+	DECLARE @ColList varchar(8000);
+	DECLARE @Where varchar(8000);
+	DECLARE @i int; 
+	DECLARE @i2 int;
+	DECLARE @tmp varchar(8000);
+	DECLARE @dec varchar(8000);
+	DECLARE @f varchar(8000);
+	DECLARE @d varchar(8000);
+	DECLARE @Symbol char(2);
+	DECLARE @SQL varchar(8000);
+	DECLARE @Sort varchar(8000);
+	DECLARE @strLen int;
+	DECLARE @rolename nvarchar(500);
+
+	SET @IsAdmin = 0;
+	SELECT @IsLineManager = ISNULL(IsLineManager,0), @IsFinanceController = ISNULL(IsFinanceController,0), @rolename = R.RoleName
+	FROM Employees 
+	LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId 
+	WHERE EmployeeId = @ViewerId;
+	
+	IF (@IsFinanceController = 1 OR @rolename = 'Basic Admin')
+	BEGIN
+		SET @IsAdmin = 1;
+	END
+
+	SET @SELECT = 'SELECT t1.TimesheetId, t1.EmployeeId, t1.TimesheetDate, t1.ProjectId, t1.TimesheetStatusId, ISNULL(t1.TotalHours,0) TotalHours, ISNULL(t1.TotalMins,0) TotalMins, ISNULL(t1.Rate,0) Rate, ISNULL(t1.TotalRate,0) TotalRate, ISNULL(t1.RateTypeId,0) RateTypeId, ISNULL(t1.WorkTypeId,0) WorkTypeId, ISNULL(t1.PracticeId,0) PracticeId, t1.AuthoriserName, t1.AuthorisedDate, t6.ClinicianTypeId, ISNULL(t6.Typeofclient,'''') Typeofclient, t2.Status, t3.ProjectName, ISNULL(t4.PracticeName,'''') PracticeName, (t6.FirstName + '' '' + t6.LastName) AS EmployeeName, t1.Comment, WorkType=CASE t1.WorkTypeId WHEN 1 THEN ''Locums Contractor'' WHEN 2 THEN ''Inter Company'' ELSE ''Paye'' END, RateType=CASE t1.RateTypeId WHEN 1 THEN ''Per Day'' WHEN 2 THEN ''Per Hour'' ELSE '''' END, ISNULL(t3.ProjectCode,'''') ProjectCode, ISNULL(pc.ProjectCategory,'''') ProjectCategory, ISNULL(t6.ContractorCode,'''') ContractorCode, t1.CreatedDate AS CreatedDate, t1.SUBMITTEDDATE AS SubmittedDate '
+		+ 'FROM TMS_Timesheets AS t1 '
+		+ 'INNER JOIN TMS_TimesheetStatuses AS t2 ON t1.TimesheetStatusId=t2.StatusId '
+		+ 'INNER JOIN TMS_Projects AS t3 ON t1.ProjectId=t3.ProjectId '
+		+ 'LEFT JOIN TMS_Practices AS t4 ON t1.PracticeId= t4.PracticeId '
+		+ 'INNER JOIN Employees AS t6 ON t1.EmployeeId=t6.EmployeeId '
+		+ 'LEFT JOIN ProjectCategoryTypes AS pc ON t3.ProjectCategoryId = pc.ProjectCategoryTypeID '
+		+ 'LEFT JOIN LeaveAssign AS la ON t1.EmployeeId = la.AssignEmployeeId AND t1.TimesheetDate BETWEEN la.FromDate AND la.ToDate '
+		+ 'WHERE 1=1 AND la.LeaveAssignId IS NULL';
+
+	-- Additional conditions based on parameters
+	IF @IsAdmin <> 1
+	BEGIN
+		SET @SELECT = @SELECT + ' AND t1.AuthoriserId = ' + CONVERT(varchar, @ViewerId);
+	END
+	ELSE IF @mystaff = 1
+	BEGIN
+		SET @SELECT = @SELECT + ' AND t1.AuthoriserId = ' + CONVERT(varchar, @ViewerId);
+	END
+
+	-- (Add the remaining conditions based on other parameters)
+
+	-- Pagination and sorting logic here
+
+	PRINT @SELECT;
+	EXEC(@SELECT);
+END
+```
+
+This change introduces a `LEFT JOIN` with the `LeaveAssign` table and adds a condition to exclude timesheets that fall within the leave period for the employee. You can adjust the remaining part of the query to match your specific requirements and conditions.
