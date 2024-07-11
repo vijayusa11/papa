@@ -1,0 +1,42 @@
+If the `isChecked` parameter approach doesn't work, you can instead check the state of the checkbox directly within the `OnSelectEmployee` function. Here’s an alternative approach:
+
+1. Check if the checkbox is checked or not by using its `checked` property.
+2. If it is checked, add the employee ID to the array; if not, remove it.
+
+Here’s how you can modify your `OnSelectEmployee` function and checkbox HTML:
+
+```javascript
+let empIds = [];
+
+// Function to handle checkbox selection and deselection
+function OnSelectEmployee(selectedEmployeeId) {
+    debugger
+
+    // Get the checkbox element by ID
+    let checkbox = document.getElementById(selectedEmployeeId);
+
+    if (checkbox.checked) {
+        // Add the selected employee ID to the array
+        empIds.push(selectedEmployeeId);
+    } else {
+        // Remove the unselected employee ID from the array
+        empIds = empIds.filter(id => id !== selectedEmployeeId);
+    }
+
+    // Update the hidden input field with the joined IDs
+    $("#hdn_selectedEmployees").val(empIds.join(","));
+}
+
+// Modify the checkbox HTML to use the correct function
+let strreturn = strreturn + " <td><input type=\"checkbox\" onchange=\"OnSelectEmployee(" + b.EmployeeId + ")\" class=\"chkdownloaddoc\" id=\"" + b.EmployeeId + "\" /></td>" + Environment.NewLine;
+```
+
+In this code:
+
+1. The `OnSelectEmployee` function gets the checkbox element by its ID.
+2. It checks whether the checkbox is checked or unchecked.
+3. If checked, the selected employee ID is added to the `empIds` array.
+4. If unchecked, the unselected employee ID is removed from the `empIds` array using the `filter` method.
+5. The hidden input field is updated with the current list of selected employee IDs.
+
+This should correctly handle both the selection and deselection of checkboxes.
