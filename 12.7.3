@@ -1,0 +1,143 @@
+To update the `count` variable to reflect the number of unique entries after removing duplicates, you can set the `count` based on the size of the `HashSet`. Here's how you can modify your code to achieve this:
+
+1. Use the `HashSet` to track unique entries and count them.
+2. Update the `count` variable to the size of the `HashSet` after processing the list.
+3. Adjust the pagination and return the modified count.
+
+Here's the updated code:
+
+```csharp
+{
+    var oList = objBL.SelectTimesheetListStatusWise(Convert.ToInt32(Request["frompage"]), Convert.ToInt32(Request["topage"]), AuthoriserName, AuthorisedDate, EmployeeName, TimesheetDate, ProjectName, PracticeName, TotalHours, TotalMins, Rate, TotalRate, RateTypeId, WorkTypeId, Status, fromDate, toDate, TimesheetStatusId, CreatedDate, SubmittedDate, EmployeeId, ForEmployeePara, mystaff, orderby, ordertype);
+    
+    var uniqueEntries = new HashSet<string>();
+
+    if (oList != null)
+    {
+        foreach (var oEnitity in oList)
+        {
+            string uniqueKey = $"{oEnitity.TimesheetDate}_{oEnitity.EmployeeName}_{oEnitity.ProjectName}_{oEnitity.PracticeName}";
+            uniqueEntries.Add(uniqueKey);
+        }
+    }
+    
+    count = uniqueEntries.Count; // Update count with the number of unique entries
+    
+    if (count > 0)
+    {
+        Pager Objpaging = new Pager();
+        pagestring = Objpaging.GetFrontPagging(count, 100000, "", pageno);
+    }
+    string strRowClass = string.Empty;
+    if (oList != null)
+    {
+        int i = 0;
+        Int32 groupID = Common.GetCurrentUserGroupId();
+        strreturn = strreturn + "<input type=\"hidden\" value=\"" + count + "\" id=\"hftotalcount" + TimesheetStatusId + "\" />";
+
+        uniqueEntries.Clear(); // Clear the HashSet for reuse in the next loop
+
+        foreach (var oEnitity in oList)
+        {
+            string uniqueKey = $"{oEnitity.TimesheetDate}_{oEnitity.EmployeeName}_{oEnitity.ProjectName}_{oEnitity.PracticeName}";
+            if (uniqueEntries.Contains(uniqueKey))
+            {
+                continue; // Skip duplicates
+            }
+            uniqueEntries.Add(uniqueKey);
+
+            if ((i + 1) % 2 == 0)
+                strRowClass = "odd";
+            else
+                strRowClass = "even";
+
+            string strbrowser = Common.checkbrowser();
+
+            if (strbrowser.ToLower() == "ie" || strbrowser.ToLower() == "chrome")
+            {
+                strreturn = strreturn + "                <tr  tabindex=\"" + i + "\" id=\"" + i + "\"  class=\"" + strRowClass + "\" >" + Environment.NewLine;
+            }
+            else
+            {
+                strreturn = strreturn + "                <tr tabindex=\"" + i + "\" id=\"" + i + "\"  class=\"" + strRowClass + "\" >" + Environment.NewLine;
+            }
+            if (TimesheetStatusId == "0")
+            {
+                strreturn = strreturn + "					<td align='center' ></td>" + Environment.NewLine;
+            }
+            else
+            {
+                strreturn = strreturn + "					<td align='center' ><input id='chk" + oEnitity.TimesheetId + "' type='checkbox' name='Approve' value='" + oEnitity.TimesheetId + "' /></td>" + Environment.NewLine;
+            }
+            strreturn = strreturn + "					<td>" + oEnitity.TimesheetDate.ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+            strreturn += "<td>" + oEnitity.EmployeeName + "</td>";
+            strreturn = strreturn + "<td>" + oEnitity.ProjectName + "</td>" + Environment.NewLine;
+            strreturn = strreturn + "<td>" + oEnitity.PracticeName + "</td>" + Environment.NewLine;
+
+            if (oEnitity.CreatedDate != null)
+                strreturn = strreturn + "<td>" + oEnitity.CreatedDate.ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+            else
+                strreturn = strreturn + "<td>" + string.Empty + "</td>" + Environment.NewLine;
+
+            if (Convert.ToInt32(TimesheetStatusId) != (int)EnumTimesheetStatuses.DraftNotSubmitted)
+            {
+                if (oEnitity.SubmittedDate != null)
+                    strreturn = strreturn + "<td>" + oEnitity.SubmittedDate.Value.ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+                else
+                    strreturn = strreturn + "<td>" + string.Empty + "</td>" + Environment.NewLine;
+            }
+
+            if (Convert.ToInt32(TimesheetStatusId) != (int)EnumTimesheetStatuses.DraftNotSubmitted)
+            {
+                strreturn = strreturn + "<td align='right' >" + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+            }  
+                
+            strreturn = strreturn + "<td align='right' >" + oEnitity.Rate + "</td>" + Environment.NewLine;
+
+            if (Convert.ToInt32(TimesheetStatusId) != (int)EnumTimesheetStatuses.DraftNotSubmitted)
+            {
+                strreturn = strreturn + "<td align='right' >" + oEnitity.TotalRate + "</td>" + Environment.NewLine;
+            }                        
+            
+            if (TimesheetStatusId == "0")
+            {
+                string expenseStatus = string.Empty;
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.Draft)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #999;\">Submitted</span>";
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.Authorised)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #5cb85c;\">Authorised</span>";
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.Reject)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #d9534f;\">Rejected</span>";
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.Invoiced)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #5bc0de;\">Invoiced</span>";
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.Paid)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #428bca;\">Paid</span>";
+                if (oEnitity.TimesheetStatusId == (int)EnumTimesheetStatuses.DraftNotSubmitted)
+                    expenseStatus = "<span class=\"label\" style=\"background-color: #FFA500;\">Draft Not Submitted</span>";
+                strreturn = strreturn + "<td>" + expenseStatus + "</td>" + Environment.NewLine;
+            }
+            if (Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Authorised)
+            {
+                strreturn = strreturn + "<td>" + oEnitity.AuthoriserName + "</td>" + Environment.NewLine;
+                if (oEnitity.AuthorisedDate != null)
+                    strreturn = strreturn + "<td>" + oEnitity.AuthorisedDate.Value.ToString("dd/MM/yyyy hh:mm tt") + "</td>" + Environment.NewLine;
+                else
+                    strreturn = strreturn + "<td></td>" + Environment.NewLine;
+            }
+            if ((Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Authorised || Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Draft) && Common.IsCurrentUserAdmin() == true)
+            {
+                strreturn = strreturn + "<td>";
+                strreturn = strreturn + "<a href=\"javascript:;\" alt='Edit' onclick=\"EditTimesheet(" + oEnitity.TimesheetId + "," + oEnitity.EmployeeId + "," + oEnitity.ProjectId + "," + oEnitity.PracticeId + ",'" + oEnitity.TotalHours + "','" + oEnitity.TotalMins + "','" + oEnitity.Rate + "','" + oEnitity.Comment + "','" + oEnitity.RateType + "','" + oEnitity.TimesheetDate + "')\"><span class=\"icon-edit\"></span</a>";
+                strreturn = strreturn + "&nbsp;<a href=\"javascript:;\" alt='Timesheet Calendar' onclick=\"ShowTimeSheetCalendar(" + oEnitity.EmployeeId + ")\"><span class=\"icon-calendar\"></span</a>";
+                strreturn = strreturn + "</td>" + Environment.NewLine;
+            }
+            strreturn = strreturn + "</tr>" + Environment.NewLine;
+            i += 1;
+        }
+        if (count == 0)
+        {
+            strreturn = strreturn + "<tr><td colspan=\"13\"><div class=\"alert-box notice\">" + Message.GetMessage((int)EnumMessages.NO_DATA_FOUND) + "</div></td></tr>";
+        }
+    }
+    oList = null;
+    objBL.Dispose();
