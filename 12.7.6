@@ -1,0 +1,58 @@
+You need to add a JOIN with the `LeaveDetails` table and modify the `WHERE` clause to exclude timesheet entries that fall within the leave period. Here is the relevant part of the code to change:
+
+### Adding the JOIN:
+```sql
+set @SELECT = @SELECT + ' LEFT JOIN LeaveDetails AS ld ON t1.EmployeeId = ld.EmployeeId AND t1.TimesheetDate BETWEEN ld.FromDate AND ld.ToDate'
+```
+
+### Modifying the WHERE clause:
+```sql
+set @SELECT = @SELECT + ' WHERE ld.LeaveId IS NULL AND 1=1'
+```
+
+### Full Code Snippet to Replace:
+```sql
+set @SELECT = 'SELECT   '	
+set @SELECT = @SELECT + ' 	t1.TimesheetId,'
+set @SELECT = @SELECT + ' 	t1.EmployeeId,'
+set @SELECT = @SELECT + ' 	t1.TimesheetDate,'	
+set @SELECT = @SELECT + ' 	t1.ProjectId,'	
+set @SELECT = @SELECT + ' 	t1.TimesheetStatusId,'	
+set @SELECT = @SELECT + ' 	isnull(t1.TotalHours,0) TotalHours,'
+set @SELECT = @SELECT + ' 	isnull(t1.TotalMins,0) TotalMins,'
+set @SELECT = @SELECT + ' 	isnull(t1.Rate,0) Rate,'
+set @SELECT = @SELECT + ' 	isnull(t1.TotalRate,0) TotalRate,'
+set @SELECT = @SELECT + ' 	isnull(t1.RateTypeId,0) RateTypeId,'
+set @SELECT = @SELECT + ' 	isnull(t1.WorkTypeId,0) WorkTypeId,'
+set @SELECT = @SELECT + ' 	isnull(t1.PracticeId,0) PracticeId,'
+set @SELECT = @SELECT + ' 	t1.AuthoriserName,'	
+set @SELECT = @SELECT + ' 	t1.AuthorisedDate,'	
+set @SELECT = @SELECT + ' 	t6.ClinicianTypeId,'	
+set @SELECT = @SELECT + ' 	isnull(t6.Typeofclient,'''') Typeofclient, '
+
+set @SELECT = @SELECT + ' 	t2.Status,'
+set @SELECT = @SELECT + ' 	t3.ProjectName, '
+set @SELECT = @SELECT + ' 	isnull(t4.PracticeName,'''') PracticeName, '
+set @SELECT = @SELECT + ' 	(t6.FirstName + '' '' + t6.LastName) AS EmployeeName, '	
+set @SELECT = @SELECT + ' 	t1.Comment,'	
+	
+set @SELECT = @SELECT + '	WorkType=case t1.WorkTypeId when 1 then ''Locums Contractor'' when 2 then ''Inter Company'' else ''Paye'' end,'
+set @SELECT = @SELECT + '	RateType=case t1.RateTypeId when 1 then ''Per Day''  when 2 then ''Per Hour'' else '''' end,'
+	
+set @SELECT = @SELECT + ' 	isnull(t3.ProjectCode,'''') ProjectCode, ' -- Client Xero Code
+set @SELECT = @SELECT + ' 	isnull(pc.ProjectCategory,'''') ProjectCategory, ' -- Service Code
+set @SELECT = @SELECT + ' 	isnull(t6.ContractorCode,'''') ContractorCode, ' -- Staff Xero Code
+
+set @SELECT = @SELECT + ' 	t1.CreatedDate AS CreatedDate, '
+set @SELECT = @SELECT + ' 	t1.SUBMITTEDDATE AS SubmittedDate '
+	
+set @SELECT = @SELECT + ' 	FROM TMS_Timesheets AS t1 '
+set @SELECT = @SELECT + ' 	INNER JOIN TMS_TimesheetStatuses AS t2 ON t1.TimesheetStatusId=t2.StatusId'
+set @SELECT = @SELECT + ' 	INNER JOIN TMS_Projects AS t3 ON t1.ProjectId=t3.ProjectId'
+set @SELECT = @SELECT + ' 	LEFT JOIN TMS_Practices AS t4 ON t1.PracticeId= t4.PracticeId'
+set @SELECT = @SELECT + ' 	INNER JOIN Employees AS t6 ON t1.EmployeeId=t6.EmployeeId'
+set @SELECT = @SELECT + ' 	LEFT JOIN ProjectCategoryTypes AS pc on t3.ProjectCategoryId = pc.ProjectCategoryTypeID'
+set @SELECT = @SELECT + ' 	LEFT JOIN LeaveDetails AS ld ON t1.EmployeeId = ld.EmployeeId AND t1.TimesheetDate BETWEEN ld.FromDate AND ld.ToDate'
+	
+set @SELECT = @SELECT + ' 	WHERE ld.LeaveId IS NULL AND 1=1'
+```
