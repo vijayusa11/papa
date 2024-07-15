@@ -1,0 +1,168 @@
+Here's the converted stored procedure:
+
+```sql
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListStatusWise]
+(
+    @OrderBy varchar(1000),
+    @StartRow int,
+    @EndRow int,
+    
+    @EmployeeName nvarchar(100),
+    @TimesheetDate nvarchar(10),
+    @ProjectName nvarchar(100),
+    @PracticeName nvarchar(100),
+    
+    @TotalHours nvarchar(10),
+    @TotalMins nvarchar(20),
+    @Rate nvarchar(5),
+    @TotalRate nvarchar(10),
+    
+    @RateTypeId nvarchar(10),
+    @WorkTypeId nvarchar(10),
+    @Status nvarchar(50),
+    @FromDate nvarchar(10),
+    @ToDate nvarchar(10),
+    @TimesheetStatusId nvarchar(10),
+    @AuthoriserName nvarchar(100),
+    @AuthorisedDate nvarchar(20),
+    
+    @CreatedDate nvarchar(20),
+    @SubmittedDate nvarchar(20),
+    
+    @EmployeeId nvarchar(10),
+    
+    @ViewerId int,
+    @ForEmployee bit = 0,
+    @mystaff bit = 0,
+    @TotalCount int out
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsLineManager bit;
+    DECLARE @IsFinanceController bit;
+    DECLARE @IsAdmin bit;
+    DECLARE @SELECT varchar(8000);
+    DECLARE @ColList varchar(8000);
+    DECLARE @Where varchar(8000);
+    DECLARE @i int; 
+    DECLARE @i2 int;
+    DECLARE @tmp varchar(8000);
+    DECLARE @dec varchar(8000);
+    DECLARE @f varchar(8000);
+    DECLARE @d varchar(8000);
+    DECLARE @Symbol char(2);
+    DECLARE @SQL varchar(8000);
+    DECLARE @Sort varchar(8000);
+    DECLARE @strLen int;
+    DECLARE @rolename nvarchar(500);
+
+    SET @IsAdmin = 0;
+    SELECT @IsLineManager = ISNULL(IsLineManager, 0), 
+           @IsFinanceController = ISNULL(IsFinanceController, 0), 
+           @rolename = R.RoleName 
+    FROM Employees 
+    LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId 
+    WHERE EmployeeId = @ViewerId;
+
+    IF (@IsFinanceController = 1 OR @rolename = 'Basic Admin')
+    BEGIN
+        SET @IsAdmin = 1;
+    END
+
+    SET @SELECT = 'SELECT t1.TimesheetId, t1.EmployeeId, t1.TimesheetDate, t1.ProjectId, t1.TimesheetStatusId, isnull(t1.TotalHours, 0) TotalHours, isnull(t1.TotalMins, 0) TotalMins, isnull(t1.Rate, 0) Rate, isnull(t1.TotalRate, 0) TotalRate, isnull(t1.RateTypeId, 0) RateTypeId, isnull(t1.WorkTypeId, 0) WorkTypeId, isnull(t1.PracticeId, 0) PracticeId, t1.AuthoriserName, t1.AuthorisedDate, t6.ClinicianTypeId, isnull(t6.Typeofclient, '''') Typeofclient, t2.Status, t3.ProjectName, isnull(t4.PracticeName, '''') PracticeName, (t6.FirstName + '' '' + t6.LastName) AS EmployeeName, t1.Comment, WorkType = CASE t1.WorkTypeId WHEN 1 THEN ''Locums Contractor'' WHEN 2 THEN ''Inter Company'' ELSE ''Paye'' END, RateType = CASE t1.RateTypeId WHEN 1 THEN ''Per Day'' WHEN 2 THEN ''Per Hour'' ELSE '''' END, isnull(t3.ProjectCode, '''') ProjectCode, isnull(pc.ProjectCategory, '''') ProjectCategory, isnull(t6.ContractorCode, '''') ContractorCode, t1.CreatedDate AS CreatedDate, t1.SUBMITTEDDATE AS SubmittedDate FROM TMS_Timesheets AS t1 INNER JOIN TMS_TimesheetStatuses AS t2 ON t1.TimesheetStatusId = t2.StatusId INNER JOIN TMS_Projects AS t3 ON t1.ProjectId = t3.ProjectId LEFT JOIN TMS_Practices AS t4 ON t1.PracticeId = t4.PracticeId INNER JOIN Employees AS t6 ON t1.EmployeeId = t6.EmployeeId LEFT JOIN ProjectCategoryTypes AS pc ON t3.ProjectCategoryId = pc.ProjectCategoryTypeID LEFT JOIN LeaveDetails AS ld ON t1.EmployeeId = ld.CreatedBy AND CAST(t1.TimesheetDate AS DATE) BETWEEN CAST(ld.FromDate AS DATE) AND CAST(ld.ToDate AS DATE) WHERE ld.LeaveId IS NULL AND 1 = 1';
+
+    IF @IsAdmin <> 1
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.AuthoriserId = ' + CONVERT(varchar, @ViewerId);
+    END
+    ELSE IF @mystaff = 1
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.AuthoriserId = ' + CONVERT(varchar, @ViewerId);
+    END
+
+    IF @AuthoriserName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND isnull(t1.AuthoriserName, '''') LIKE ''%' + CONVERT(varchar, @AuthoriserName) + '%''';
+    END 
+
+    IF @AuthorisedDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar(10), t1.AuthorisedDate, 103) LIKE ''%' + CONVERT(varchar, @AuthorisedDate) + '%''';
+    END 
+
+    IF @EmployeeName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND (RTRIM(LTRIM(t6.FirstName)) + '' '' + RTRIM(LTRIM(t6.LastName)) LIKE ''%' + CONVERT(varchar, @EmployeeName) + '%'')';
+    END
+
+    IF @TimesheetDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND isnull(t1.TimesheetDate, '''') LIKE ''%' + CONVERT(varchar, @TimesheetDate) + '%''';
+    END 
+
+    IF @ProjectName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND isnull(t3.ProjectName, '''') LIKE ''%' + CONVERT(varchar, @ProjectName) + '%''';
+    END 
+
+    IF @PracticeName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND isnull(t4.PracticeName, '''') LIKE ''%' + CONVERT(varchar, @PracticeName) + '%''';
+    END 
+
+    IF @TotalHours <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.TotalHours, ''0'')) LIKE ''%' + CONVERT(varchar, @TotalHours) + '%''';
+    END 
+
+    IF @TotalMins <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.TotalMins, ''0'')) LIKE ''%' + CONVERT(varchar, @TotalMins) + '%''';
+    END 
+
+    IF @Rate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.Rate, ''0'')) LIKE ''%' + CONVERT(varchar, @Rate) + '%''';
+    END 
+
+    IF @TotalRate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.TotalRate, ''0'')) LIKE ''%' + CONVERT(varchar, @TotalRate) + '%''';
+    END 
+
+    IF @FromDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.TimesheetDate >= CONVERT(datetime, ''' + @FromDate + ''', 103)';
+    END 
+
+    IF @ToDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.TimesheetDate <= CONVERT(datetime, ''' + @ToDate + ''', 103)';
+    END 
+
+    IF @RateTypeId <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.RateTypeId, ''0'')) = ''' + CONVERT(varchar, @RateTypeId) + '''';
+    END 
+
+    IF @WorkTypeId <> '0'
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.WorkTypeId, ''0'')) = ''' + CONVERT(varchar, @WorkTypeId) + '''';
+    END 
+
+    IF @Status <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND isnull(t2.Status, '''') LIKE ''%' + CONVERT(varchar, @Status) + '%''';
+    END 
+
+    IF @TimesheetStatusId <> '0'
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.TimesheetStatusId, ''0'')) = ''' + CONVERT(varchar, @TimesheetStatusId) + '''';
+    END 
+    ELSE
+    BEGIN
+        IF @ForEmployee = 0
+        BEGIN
+            SET @SELECT = @SELECT + ' AND CONVERT(varchar, isnull(t1.TimesheetStatusId, ''0'')) <> 6
