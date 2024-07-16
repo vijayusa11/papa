@@ -1,0 +1,251 @@
+USE [CPSIntranet_Beta]
+GO
+/****** Object:  StoredProcedure [dbo].[TMS_spGetTimesheetListforUnSubmittedStatus]    Script Date: 16-07-2024 15:32:38 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+--WARNING! ERRORS ENCOUNTERED DURING SQL PARSING!  
+
+
+ -- exec [dbo].[TMS_spGetTimesheetListforUnSubmittedStatus] 'TimesheetDate asc',1,20,'','','','','','','01/07/2024','30/07/2024','','6','','',0,null
+
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListforUnSubmittedStatus] 
+(      
+ @OrderBy varchar(1000),--=AllDates asc',       
+ @StartRow int,--=1,       
+ @EndRow int,--=20,      
+ 
+ @TimesheetDate nvarchar(10) ,--=',      
+ @EmployeeName nvarchar(100) ,--=',      
+ @ProjectName nvarchar(100) ,--=',      
+ @PracticeName nvarchar(100) ,--=',      
+ @CreatedDate nvarchar(20) ,--=',
+ @Rate nvarchar(5) ,--=',      
+
+ @FromDate nvarchar(10) ,--=01/07/2024',      
+ @ToDate nvarchar(10) ,--=30/07/2024',      
+ @WorkTypeId nvarchar(10) ,--=0',      
+ @TimesheetStatusId nvarchar(10) ,--=6',      
+ 
+ @EmployeeId nvarchar(10) ,--=',      
+       
+ @ViewerId int =1,      
+ @mystaff bit = 0,      
+ @TotalCount int out      
+) 
+As           
+BEGIN 
+
+	declare @IsLineManager bit;   
+	declare @IsFinanceController bit;          
+	declare @IsAdmin bit;  
+	declare @SELECT varchar(8000);  
+	declare @rolename nvarchar(500);  
+	declare @Sort varchar(8000); 	
+	declare @ColList varchar(8000);          
+	declare @Where varchar(8000);          
+	declare @i int;           
+	declare @i2 int;          
+	declare @tmp varchar(8000);          
+	declare @dec varchar(8000);          
+	declare @f varchar(8000);          
+	declare @d varchar(8000);          
+	declare @Symbol char(2);          
+	declare @SQL varchar(8000);   
+
+		 SET @IsAdmin = 0;          
+		 SELECT @IsLineManager=ISNULL(IsLineManager,0), @IsFinanceController=ISNULL(IsFinanceController,0), @rolename = R.RoleName FROM Employees           
+		 LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId           
+		 WHERE EmployeeId = @ViewerId  
+
+		 IF (@IsFinanceController = 1 OR @rolename ='Basic Admin')          
+		 BEGIN          
+		   SET @IsAdmin = 1          
+		 END 
+
+			set @SELECT = 'SELECT   '           
+			set @SELECT = @SELECT + '  cast(t1.TimesheetDate as date) as TimesheetDate, '   
+			set @SELECT = @SELECT + '  t6.FirstName + '' '' + t6.LastName as EmployeeName, '
+			set @SELECT = @SELECT + '  t3.ProjectName, '
+			set @SELECT = @SELECT + '  t4.PracticeName, '
+			set @SELECT = @SELECT + '  cast(t1.CreatedDate as date) as CreatedDate, '
+			set @SELECT = @SELECT + '  t1.Rate	'
+
+			set @SELECT = @SELECT + '  FROM dbo.Employees t6  with(nolock) '          
+			set @SELECT = @SELECT + '  LEFT JOIN dbo.rotadetails r with(nolock)ON t6.EmployeeId = r.EmployeeId ' 
+			set @SELECT = @SELECT + '  LEFT JOIN dbo.Tms_Timesheets t1 with(nolock)ON r.EmployeeId = t1.EmployeeId AND r.PracticeId = t1.PracticeId  ' 
+			set @SELECT = @SELECT + '  LEFT JOIN TMS_Projects t3 with(nolock) ON t1.ProjectId = t3.ProjectId ' 
+			set @SELECT = @SELECT + '  LEFT JOIN TMS_Practices t4 with(nolock) ON t1.PracticeId = t4.PracticeId ' 
+			set @SELECT = @SELECT + '  LEFT JOIN dbo.TMS_TimesheetStatuses t2 with(nolock) ON t2.StatusId = t1.TimesheetStatusId ' 
+    
+			set @SELECT = @SELECT + '  WHERE Rotaid IS NOT null AND (t1.TimesheetId IS NULL OR TimesheetStatusId = '+ convert(varchar,@TimesheetStatusId) + ' ) ' 
+
+			 if @IsAdmin <> 1          
+			 begin          
+			  set @SELECT = @SELECT + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'          
+			 end          
+			 else if @mystaff = 1          
+			 begin          
+			  set @SELECT = @SELECT + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'          
+			 end  
+
+			 if @TimesheetDate<>''          
+			 begin          
+				set @SELECT = @SELECT + ' and isnull(t1.TimesheetDate,'''') like ''%'+ convert(varchar,@TimesheetDate) +'%'' '          
+			 end           
+			 
+			 if @ProjectName<>''          
+			 begin          
+				set @SELECT = @SELECT + ' and isnull(t3.ProjectName,'''') like ''%'+ convert(varchar,@ProjectName) +'%'' '          
+			 end      
+			 
+			 if @PracticeName<>''          
+			 begin          
+				set @SELECT = @SELECT + ' and isnull(t4.PracticeName,'''') like ''%'+ convert(varchar,@PracticeName) +'%'' '          
+			 end  
+			 
+             if @Rate<>''          
+			 begin          
+			  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.Rate,''0'')) like ''%'+ convert(varchar,@Rate) +'%'' '          
+			 end	
+
+			 if @Rate<>''          
+			 begin          
+				set @SELECT = @SELECT + ' and isnull(t1.CreatedDate,'''') like ''%'+ convert(varchar,@CreatedDate) +'%'' '          
+			 end
+
+			  if @FromDate<>''          
+			 begin          
+			  set @SELECT = @SELECT + ' and t1.TimesheetDate >= convert(datetime,'''+ @FromDate  + ''',103) '          
+			 end           
+			 if @ToDate<>''          
+			 begin            
+			  set @SELECT = @SELECT + ' and t1.TimesheetDate <= convert(datetime,'''+ @ToDate  + ''',103) '          
+			 end 
+
+
+			 set @SELECT = @SELECT + '  GROUP BY t6.EmployeeId, t1.TimesheetId, t2.STATUS, t1.TimesheetDate, t6.FirstName , t6.LastName, t3.ProjectName
+			  ,t4.PracticeName, t1.CreatedDate, t1.Rate  ' 
+
+
+
+			
+			----count no of records------   
+			 DECLARE @SQLString NVARCHAR(4000)          
+			 DECLARE @ParmDefinition NVARCHAR(4000)          
+			 DECLARE @IntVariable INT          
+			 DECLARE @Lastlname varchar(1000)  
+
+
+			set @SQLString = N'SELECT  @LastlnameOUT = count(t1.TimesheetDate) '           
+			
+			set @SQLString = @SQLString + '  FROM dbo.Employees t6  with(nolock) '          
+			set @SQLString = @SQLString + '  LEFT JOIN dbo.rotadetails r with(nolock)ON t6.EmployeeId = r.EmployeeId ' 
+			set @SQLString = @SQLString + '  LEFT JOIN dbo.Tms_Timesheets t1 with(nolock)ON r.EmployeeId = t1.EmployeeId AND r.PracticeId = t1.PracticeId  ' 
+			set @SQLString = @SQLString + '  LEFT JOIN TMS_Projects t3 with(nolock) ON t1.ProjectId = t3.ProjectId ' 
+			set @SQLString = @SQLString + '  LEFT JOIN TMS_Practices t4 with(nolock) ON t1.PracticeId = t4.PracticeId ' 
+			set @SQLString = @SQLString + '  LEFT JOIN dbo.TMS_TimesheetStatuses t2 with(nolock) ON t2.StatusId = t1.TimesheetStatusId ' 
+    
+			set @SQLString = @SQLString + '  WHERE Rotaid IS NOT null AND (t1.TimesheetId IS NULL OR TimesheetStatusId = '+ convert(varchar,@TimesheetStatusId) + ' ) ' 
+
+			 if @IsAdmin <> 1          
+			 begin          
+			  set @SQLString = @SQLString + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'          
+			 end          
+			 else if @mystaff = 1          
+			 begin          
+			  set @SQLString = @SQLString + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'          
+			 end  
+
+			 if @TimesheetDate<>''          
+			 begin          
+				set @SQLString = @SQLString + ' and isnull(t1.TimesheetDate,'''') like ''%'+ convert(varchar,@TimesheetDate) +'%'' '          
+			 end           
+			 
+			 if @ProjectName<>''          
+			 begin          
+				set @SQLString = @SQLString + ' and isnull(t3.ProjectName,'''') like ''%'+ convert(varchar,@ProjectName) +'%'' '          
+			 end      
+			 
+			 if @PracticeName<>''          
+			 begin          
+				set @SQLString = @SQLString + ' and isnull(t4.PracticeName,'''') like ''%'+ convert(varchar,@PracticeName) +'%'' '          
+			 end  
+			 
+             if @Rate<>''          
+			 begin          
+			  set @SQLString = @SQLString + ' and convert(varchar, isnull(t1.Rate,''0'')) like ''%'+ convert(varchar,@Rate) +'%'' '          
+			 end	
+
+			 if @Rate<>''          
+			 begin          
+				set @SQLString = @SQLString + ' and isnull(t1.CreatedDate,'''') like ''%'+ convert(varchar,@CreatedDate) +'%'' '          
+			 end
+
+			  if @FromDate<>''          
+			 begin          
+			  set @SQLString = @SQLString + ' and t1.TimesheetDate >= convert(datetime,'''+ @FromDate  + ''',103) '          
+			 end           
+			 if @ToDate<>''          
+			 begin            
+			  set @SQLString = @SQLString + ' and t1.TimesheetDate <= convert(datetime,'''+ @ToDate  + ''',103) '          
+			 end 
+
+			 set @SQLString = @SQLString + '  GROUP BY t6.EmployeeId, t1.TimesheetId, t2.STATUS, t1.TimesheetDate, t6.FirstName ,t6.LastName, t3.ProjectName
+			  ,t4.PracticeName, t1.CreatedDate, t1.Rate  ' 
+
+		       SET @ParmDefinition = N'@level int, @LastlnameOUT varchar(30) OUTPUT'          
+			   SET @IntVariable = 35    
+
+ EXECUTE sp_executesql          
+  @SQLString,          
+  @ParmDefinition,          
+  @level = @IntVariable,          
+  @LastlnameOUT=@Lastlname OUTPUT          
+ set @TotalCount=@Lastlname          
+          
+ ----end count no of records----          
+  --set @OrderBy= 'Username asc'          
+  set @Sort = @OrderBy + ', '          
+  set @dec = ''          
+  set @Where  = ''          
+  set @SQL = ''          
+          
+  set @i = charindex(',' , @Sort)          
+  while @i != 0          
+          
+   begin          
+             
+    set @tmp = left(@Sort,@i-1)          
+    set @i2 = charindex(' ', @tmp)          
+   set @f = ltrim(rtrim(left(@tmp,@i2-1)))          
+    set @d = ltrim(rtrim(substring(@tmp,@i2+1,100)))          
+    set @Sort = rtrim(ltrim(substring(@Sort,@i+1,100)))          
+    set @i = charindex(',', @Sort)          
+          
+    set @symbol = case when @d = 'ASC' then '>' else '<' end +          
+      case when @i=0 then '=' else '' end          
+          
+    set @dec = @dec + 'declare @' + @f + ' sql_variant; '          
+    set @ColList = isnull(replace(replace(@colList,'>','='),'<','=') + ' and ','') +          
+       @f + @Symbol + ' @' + @f          
+    set @Where = @Where + ' OR (' + @ColList + ') '          
+    set @SQL = @SQL + ', @' + @f + '= ' + @f          
+          
+   end          
+          
+   set @SQL = @dec + ' ' +          
+          
+           'SET ROWCOUNT ' + convert(varchar(10), @StartRow) + '; ' +          
+           'SELECT ' + substring(@SQL,3,7000) + ' from (' + @Select + ') a ORDER BY ' +          
+           @OrderBy + '; ' + 'SET ROWCOUNT ' +          
+           convert(varchar(10), 1 + @EndRow - @StartRow) + '; ' +          
+           'select * from (' + @Select + ') a WHERE ' +          
+           substring(@Where,4,7000) + ' ORDER BY ' + @OrderBy + '; SET ROWCOUNT 0;'          
+          
+          
+ PRINT @SQL          
+ EXEC(@SQL)      
+END  
