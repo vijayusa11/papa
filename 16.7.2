@@ -1,0 +1,152 @@
+The stored procedure seems to have some logical errors and redundant code which may be causing it to not return data. Let's clean it up and correct potential issues.
+
+### Issues Identified:
+
+1. Duplicate checks for `@Rate` in the `WHERE` clause.
+2. Usage of `SET ROWCOUNT` which is deprecated. Consider using `OFFSET` and `FETCH` instead for pagination.
+3. Potential logical errors in constructing the dynamic SQL.
+4. Potentially incorrect handling of `NULL` values in the `WHERE` clause.
+5. Redundant or misplaced comments and variables.
+
+### Cleaned Up Version:
+
+```sql
+USE [CPSIntranet_Beta]
+GO
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListforUnSubmittedStatus]
+(
+    @OrderBy varchar(1000), 
+    @StartRow int, 
+    @EndRow int,
+    @TimesheetDate nvarchar(10),
+    @EmployeeName nvarchar(100),
+    @ProjectName nvarchar(100),
+    @PracticeName nvarchar(100),
+    @CreatedDate nvarchar(20),
+    @Rate nvarchar(5),
+    @FromDate nvarchar(10),
+    @ToDate nvarchar(10),
+    @WorkTypeId nvarchar(10),
+    @TimesheetStatusId nvarchar(10),
+    @EmployeeId nvarchar(10),
+    @ViewerId int = 1,
+    @mystaff bit = 0,
+    @TotalCount int out
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @IsLineManager bit;
+    DECLARE @IsFinanceController bit;
+    DECLARE @IsAdmin bit;
+    DECLARE @SELECT nvarchar(MAX);
+    DECLARE @SQLString nvarchar(MAX);
+    DECLARE @ParmDefinition nvarchar(500);
+    DECLARE @Lastlname int;
+
+    SET @IsAdmin = 0;
+
+    SELECT @IsLineManager = ISNULL(IsLineManager, 0),
+           @IsFinanceController = ISNULL(IsFinanceController, 0),
+           @rolename = R.RoleName
+    FROM Employees
+    LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId
+    WHERE EmployeeId = @ViewerId;
+
+    IF (@IsFinanceController = 1 OR @rolename = 'Basic Admin')
+    BEGIN
+        SET @IsAdmin = 1;
+    END
+
+    SET @SELECT = 'SELECT 
+                     CAST(t1.TimesheetDate AS DATE) AS TimesheetDate,
+                     t6.FirstName + '' '' + t6.LastName AS EmployeeName,
+                     t3.ProjectName,
+                     t4.PracticeName,
+                     CAST(t1.CreatedDate AS DATE) AS CreatedDate,
+                     t1.Rate
+                   FROM dbo.Employees t6 WITH (NOLOCK)
+                   LEFT JOIN dbo.rotadetails r WITH (NOLOCK) ON t6.EmployeeId = r.EmployeeId
+                   LEFT JOIN dbo.Tms_Timesheets t1 WITH (NOLOCK) ON r.EmployeeId = t1.EmployeeId AND r.PracticeId = t1.PracticeId
+                   LEFT JOIN TMS_Projects t3 WITH (NOLOCK) ON t1.ProjectId = t3.ProjectId
+                   LEFT JOIN TMS_Practices t4 WITH (NOLOCK) ON t1.PracticeId = t4.PracticeId
+                   LEFT JOIN dbo.TMS_TimesheetStatuses t2 WITH (NOLOCK) ON t2.StatusId = t1.TimesheetStatusId
+                   WHERE Rotaid IS NOT NULL AND (t1.TimesheetId IS NULL OR TimesheetStatusId = ' + CONVERT(VARCHAR, @TimesheetStatusId) + ')';
+
+    IF @IsAdmin <> 1 OR @mystaff = 1
+    BEGIN
+        SET @SELECT = @SELECT + ' AND (t1.AuthoriserId = ' + CONVERT(VARCHAR, @ViewerId) + ' OR t1.AuthoriserId IS NULL)';
+    END
+
+    IF @TimesheetDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND ISNULL(t1.TimesheetDate, '''') LIKE ''%' + @TimesheetDate + '%''';
+    END
+
+    IF @ProjectName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND ISNULL(t3.ProjectName, '''') LIKE ''%' + @ProjectName + '%''';
+    END
+
+    IF @PracticeName <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND ISNULL(t4.PracticeName, '''') LIKE ''%' + @PracticeName + '%''';
+    END
+
+    IF @Rate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND CONVERT(VARCHAR, ISNULL(t1.Rate, ''0'')) LIKE ''%' + @Rate + '%''';
+    END
+
+    IF @CreatedDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND ISNULL(t1.CreatedDate, '''') LIKE ''%' + @CreatedDate + '%''';
+    END
+
+    IF @FromDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.TimesheetDate >= CONVERT(DATETIME, ''' + @FromDate + ''', 103)';
+    END
+
+    IF @ToDate <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND t1.TimesheetDate <= CONVERT(DATETIME, ''' + @ToDate + ''', 103)';
+    END
+
+    SET @SELECT = @SELECT + ' GROUP BY t6.EmployeeId, t1.TimesheetId, t2.STATUS, t1.TimesheetDate, t6.FirstName, t6.LastName, t3.ProjectName, t4.PracticeName, t1.CreatedDate, t1.Rate';
+
+    SET @SQLString = 'SELECT @LastlnameOUT = COUNT(1) FROM (' + @SELECT + ') AS subquery';
+    SET @ParmDefinition = N'@LastlnameOUT int OUTPUT';
+
+    EXEC sp_executesql @SQLString, @ParmDefinition, @LastlnameOUT=@Lastlname OUTPUT;
+    SET @TotalCount = @Lastlname;
+
+    SET @SQLString = 'WITH OrderedResults AS
+                      (
+                          ' + @SELECT + ',
+                          ROW_NUMBER() OVER (ORDER BY ' + @OrderBy + ') AS RowNum
+                      )
+                      SELECT *
+                      FROM OrderedResults
+                      WHERE RowNum BETWEEN ' + CONVERT(VARCHAR, @StartRow) + ' AND ' + CONVERT(VARCHAR, @EndRow);
+
+    PRINT @SQLString;
+    EXEC sp_executesql @SQLString;
+END
+```
+
+### Explanation of Changes:
+1. **Dynamic SQL Simplification:** Cleaned up the dynamic SQL construction by removing redundant and duplicate checks.
+2. **Paging Using `ROW_NUMBER()`:** Used `ROW_NUMBER()` to handle pagination, which is more reliable and modern compared to `SET ROWCOUNT`.
+3. **NULL Handling:** Improved the handling of `NULL` values in the `WHERE` clause.
+4. **Commenting and Redundant Variables:** Removed unnecessary comments and variables for clarity.
+
+This version should execute properly and return the expected results.
