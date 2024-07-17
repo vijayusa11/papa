@@ -1,0 +1,21 @@
+var oList = objBL.SelectTimesheetListUnSubmittedStatusWise(OrderBy, Convert.ToInt32(StartRow), Convert.ToInt32(EndRow), EmployeeName, TimesheetDate, ProjectName, PracticeName, CreatedDate, Rate, WorkTypeId, Status, FromDate, ToDate, TimesheetStatusId, EmployeeId, Convert.ToInt32(ViewerId), Convert.ToBoolean(ForEmployee), mystaff, Convert.ToInt32(TotalCount));
+
+its getting error - System.FormatException: 'Input string was not in a correct format.'
+
+public List<TMS_spGetTimesheetListforUnSubmittedStatus_Result> SelectTimesheetListUnSubmittedStatusWise(string OrderBy, int StartRow, int EndRow, string EmployeeName, string TimesheetDate,  string ProjectName, string PracticeName, string CreatedDate, string Rate, string WorkTypeId, string Status, string FromDate, string ToDate, string TimesheetStatusId, string EmployeeId, int ViewerId, bool ForEmployee, bool mystaff, int TotalCount)
+{
+    try
+    {
+        var outputParameter = new ObjectParameter("TotalCount", typeof(int));
+        
+        var result = db.TMS_spGetTimesheetListforUnSubmittedStatus(OrderBy, StartRow, EndRow, EmployeeName, TimesheetDate, ProjectName, PracticeName, CreatedDate, Rate, WorkTypeId, Status, FromDate, ToDate, TimesheetStatusId, EmployeeId, ViewerId, ForEmployee, mystaff, outputParameter).ToList();
+        totalCount = Convert.ToInt32(outputParameter.Value.ToString());
+        return result;
+    }
+    catch (Exception ex)
+    {
+        throw ex;
+    }
+}
+
+what i have to do
