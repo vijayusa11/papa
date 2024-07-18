@@ -1,0 +1,50 @@
+If the HTML entity or the image tag is not working as expected, let's make sure we're correctly embedding the triangle symbol or image in the HTML. Here's a detailed approach:
+
+### Using HTML Entity for Triangle
+
+You can use Unicode characters directly in your string. Here’s how you can do it:
+
+```csharp
+strreturn = strreturn + "<td align='right' >&#9654;" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+### Using an Image Tag
+
+If you prefer using an image, ensure the image path is correct and accessible. Here’s an example:
+
+```csharp
+strreturn = strreturn + "<td align='right' ><img src='path_to_triangle_image.png' alt='triangle' style='width:10px;height:10px;' />" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+### Using Inline SVG
+
+Using an inline SVG can be a reliable way to add a triangle:
+
+```csharp
+strreturn = strreturn + "<td align='right' ><svg width='10' height='10' viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'><polygon points='0,0 10,5 0,10' style='fill:black;' /></svg>" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+Make sure you replace `style='fill:black;'` with any desired styling attributes.
+
+### Full Example
+
+Here’s the complete example in context:
+
+```csharp
+string strreturn = string.Empty;
+strreturn += "<td align='right' >&#9654;" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+
+// Or with image
+strreturn += "<td align='right' ><img src='path_to_triangle_image.png' alt='triangle' style='width:10px;height:10px;' />" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+
+// Or with inline SVG
+strreturn += "<td align='right' ><svg width='10' height='10' viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'><polygon points='0,0 10,5 0,10' style='fill:black;' /></svg>" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+### Debugging Tips
+
+1. **Ensure HTML Rendering**: Make sure the HTML content is being rendered correctly by your browser or viewer.
+2. **Check Paths**: If using images, ensure the image path is correct and accessible.
+3. **Browser Console**: Use the browser's developer tools (F12) to inspect the HTML and see if there are any issues with the HTML structure or resources.
+
+If it still doesn't work, please provide
