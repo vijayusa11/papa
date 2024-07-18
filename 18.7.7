@@ -1,0 +1,116 @@
+To achieve the desired functionality in ASP.NET, you need to bind the dropdown and handle its selection change event to filter the data accordingly. Here’s a step-by-step approach to implement this:
+
+### Step 1: Bind the Dropdown on Page Load
+
+Make sure the dropdown is bound with the correct options and the default selection is set.
+
+### Step 2: Handle Dropdown Selection Change
+
+You need to handle the dropdown change event to update the data based on the selected value.
+
+### Step 3: Filter Data Based on Dropdown Selection
+
+Update the data rendering logic to filter based on the dropdown value.
+
+Here’s how you can implement this:
+
+### Page Load Binding
+
+Bind the dropdown on page load in your ASP.NET code-behind file (`.aspx.cs`):
+
+```csharp
+protected void Page_Load(object sender, EventArgs e)
+{
+    if (!IsPostBack)
+    {
+        BindDropdown();
+        BindData("0"); // Load all data by default
+    }
+}
+
+private void BindDropdown()
+{
+    ddlWorkType.Items.Add(new ListItem("All", "0"));
+    ddlWorkType.Items.Add(new ListItem("Discrepancies", "1"));
+    ddlWorkType.Items.Add(new ListItem("Non- Discrepancies", "2"));
+}
+```
+
+### Dropdown Selection Change Event
+
+Handle the dropdown selection change event to filter the data:
+
+```csharp
+protected void ddlWorkType_SelectedIndexChanged(object sender, EventArgs e)
+{
+    string selectedValue = ddlWorkType.SelectedValue;
+    BindData(selectedValue);
+}
+```
+
+### Filter Data Based on Selection
+
+Filter the data based on the dropdown value in your data binding method:
+
+```csharp
+private void BindData(string filterType)
+{
+    string strreturn = string.Empty;
+
+    // Assuming you have a method to get your data
+    var data = GetData();
+
+    foreach (var oEnitity in data)
+    {
+        if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+        {
+            if (filterType == "0" || (filterType == "1" && oEnitity.IsDiscrepancy) || (filterType == "2" && !oEnitity.IsDiscrepancy))
+            {
+                strreturn += "<td align='center' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+            }
+        }
+        else
+        {
+            strreturn += "<td align='center' >" + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+        }
+    }
+
+    // Assuming you have a method to render your data
+    RenderData(strreturn);
+}
+
+private List<YourEntityType> GetData()
+{
+    // Retrieve your data from your data source
+    return new List<YourEntityType>();
+}
+
+private void RenderData(string strreturn)
+{
+    // Render your data to the page
+    YourLiteralControl.Text = strreturn;
+}
+```
+
+### ASPX Markup
+
+Ensure your dropdown has an `AutoPostBack` attribute and the event handler is specified:
+
+```html
+<asp:DropDownList ID="ddlWorkType" runat="server" AutoPostBack="True" OnSelectedIndexChanged="ddlWorkType_SelectedIndexChanged" class="form-control pull-right" style="width: 150px !important">
+    <asp:ListItem Text="All" Value="0" />
+    <asp:ListItem Text="Discrepancies" Value="1" />
+    <asp:ListItem Text="Non- Discrepancies" Value="2" />
+</asp:DropDownList>
+<label class="pull-right" style="padding-left: 5px; padding-right: 5px;">
+    Type
+</label>
+```
+
+### Notes:
+
+1. **IsDiscrepancy Property**: Ensure that `oEnitity` has a property to identify if it is a discrepancy (`oEnitity.IsDiscrepancy` in the example).
+2. **Rendering Data**: Adjust the `RenderData` method to match how you are outputting HTML to your page.
+3. **Page Load Check**: Ensure the dropdown binding only occurs on the initial page load (`!IsPostBack`).
+
+This approach binds the dropdown, handles its selection change to filter data, and updates the displayed data based on the selection.
