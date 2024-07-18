@@ -1,0 +1,13 @@
+To add a triangle logo before `oEnitity.AdditionalHours` in your HTML string, you can use an HTML entity or an image tag for the triangle logo. Here's an example using an HTML entity for a right-pointing triangle:
+
+```csharp
+strreturn = strreturn + "<td align='right' >" + "&#9654;" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+If you want to use a custom triangle image, you can include an `<img>` tag:
+
+```csharp
+strreturn = strreturn + "<td align='right' >" + "<img src='path_to_triangle_image.png' alt='triangle' />" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+Replace `path_to_triangle_image.png` with the actual path to your triangle image. Make sure the image is accessible from where your HTML will be rendered.
