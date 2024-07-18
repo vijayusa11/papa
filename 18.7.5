@@ -1,0 +1,51 @@
+If you need to display a warning icon, you can use a commonly recognized warning triangle symbol. Here’s how you can embed a warning triangle icon using inline SVG or a popular icon library like Font Awesome.
+
+### Using Inline SVG for a Warning Triangle
+
+```csharp
+strreturn = strreturn + "<td align='right' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg>" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+This code creates an orange triangle with an exclamation mark in it, which is a common warning symbol.
+
+### Using Font Awesome for a Warning Icon
+
+If you prefer using an icon library like Font Awesome, you’ll need to include the Font Awesome CSS in your HTML head and then use the appropriate icon class:
+
+1. **Include Font Awesome in your HTML head**:
+
+    ```html
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    ```
+
+2. **Use the Font Awesome icon in your C# code**:
+
+    ```csharp
+    strreturn = strreturn + "<td align='right' ><i class='fas fa-exclamation-triangle' style='color: orange;'></i> " + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+    ```
+
+### Full Example
+
+Here’s the complete example using inline SVG:
+
+```csharp
+string strreturn = string.Empty;
+strreturn += "<td align='right' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+```
+
+Or using Font Awesome:
+
+1. **Ensure Font Awesome CSS is included in your HTML**:
+
+    ```html
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    ```
+
+2. **Update your C# code**:
+
+    ```csharp
+    string strreturn = string.Empty;
+    strreturn += "<td align='right' ><i class='fas fa-exclamation-triangle' style='color: orange;'></i> " + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+    ```
+
+These approaches will provide a recognizable warning icon before `oEnitity
