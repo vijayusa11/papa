@@ -1,0 +1,74 @@
+To prevent duplicacy based on the combination of `TimesheetDate`, `EmployeeName`, `ProjectName`, and `PracticeName`, you can use a `HashSet` to keep track of the unique combinations that have already been processed. Here’s how you can modify your code to achieve this:
+
+### Step-by-Step Implementation
+
+1. **Create a HashSet**: Use a `HashSet<string>` to store unique combinations.
+2. **Check for Duplicacy**: Before writing data to the CSV, check if the combination already exists in the `HashSet`.
+3. **Add Combination to HashSet**: If the combination is unique, add it to the `HashSet` and write it to the CSV.
+
+### Modified Code
+
+```csharp
+string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "Export_" + DateTime.Now.Year + "_" + DateTime.Now.Month + "_" + DateTime.Now.Day + "_" + DateTime.Now.Hour + "_" + DateTime.Now.Minute + "_" + DateTime.Now.Millisecond + ".csv");
+if (Directory.Exists(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim())) == false)
+    Directory.CreateDirectory(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()));
+StreamWriter sw = new StreamWriter(strExportPath);
+string strData = string.Empty;
+
+if (Request["ExportHeader"] != null)
+{
+    strData = "Date,Staff Member,Project,Practice, Created Date, Rate";
+    sw.Write(strData);
+    sw.Write(sw.NewLine);
+}
+
+if (oList != null)
+{
+    HashSet<string> uniqueCombinations = new HashSet<string>();
+
+    foreach (var oEintity in oList)
+    {
+        strData = string.Empty;
+
+        string timesheetDate = oEintity.TimesheetDate != null ? Convert.ToDateTime(oEintity.TimesheetDate).ToString("dd/MM/yyyy") : string.Empty;
+        string employeeName = Convert.ToString(oEintity.EmployeeName);
+        string projectName = Convert.ToString(oEintity.ProjectName);
+        string practiceName = Convert.ToString(oEintity.PracticeName);
+        string createdDate = oEintity.CreatedDate != null ? Convert.ToDateTime(oEintity.CreatedDate).ToString("dd/MM/yyyy") : string.Empty;
+        string rate = Convert.ToString(oEintity.Rate);
+
+        string uniqueKey = timesheetDate + "|" + employeeName + "|" + projectName + "|" + practiceName;
+
+        if (!uniqueCombinations.Contains(uniqueKey))
+        {
+            uniqueCombinations.Add(uniqueKey);
+
+            strData += Common.GetExportString(timesheetDate) + ",";
+            strData += Common.GetExportString(employeeName) + ",";
+            strData += Common.GetExportString(projectName) + ",";
+            strData += Common.GetExportString(practiceName) + ",";
+            strData += Common.GetExportString(createdDate) + ",";
+            strData += Common.GetExportString(rate) + ",";
+
+            sw.Write(strData.Substring(0, strData.Length - 1));
+            sw.Write(sw.NewLine);
+        }
+    }
+
+    sw.Close();
+    strreturn = Path.GetFileName(strExportPath.Trim());
+}
+oList = null;
+objBL.Dispose();
+
+return (strreturn);
+```
+
+### Explanation
+
+1. **HashSet Initialization**: A `HashSet<string>` named `uniqueCombinations` is created to store unique combinations of `TimesheetDate`, `EmployeeName`, `ProjectName`, and `PracticeName`.
+2. **Combination String**: For each entry, a unique key string `uniqueKey` is formed by concatenating these fields with a delimiter (`|`).
+3. **Duplicate Check**: Before writing the data, the code checks if `uniqueKey` is already in the `HashSet`. If not, it adds the key to the `HashSet` and writes the data to the CSV.
+4. **Data Writing**: The data is written to the CSV only if the combination is unique.
+
+This ensures that only unique combinations of `TimesheetDate`, `EmployeeName`, `ProjectName`, and `PracticeName` are written to the CSV, preventing duplicacy.
