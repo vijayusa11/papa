@@ -1,0 +1,47 @@
+i just pass path directly to method 
+ExampleMethod("C:\\Users\\vijaychoudhary\\Desktop\\Call Stats Template.csv");
+
+but want to pass path by parameter in method so how can i do
+
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = ""; // Client Secret
+        string driveId = "b!2L0fIMt9J0mMDW_fuKB89Pngg3dAgy5Lidag8_qKydAJ4JeNq0iRQLtD8qa7lOud"; // Drive ID
+        string targetFolderPath = "/QXTest"; // Target folder path on SharePoint
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        using (var fileStream = new FileStream(filePath, FileMode.Open))
+        {
+            // Correctly format the folder path and upload the file
+            var driveItem = await graphClient.Drives[driveId]
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .PutAsync<DriveItem>(fileStream);
+
+            Console.WriteLine($"File {driveItem.Name} uploaded successfully to {targetFolderPath}.");
+        }
+    }
+    catch (ServiceException ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+    }
+}
