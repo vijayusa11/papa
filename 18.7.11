@@ -1,0 +1,63 @@
+It looks like you're trying to upload a file to SharePoint using the Microsoft Graph API, but there's an error in your code. Let's break down and correct the issues step-by-step:
+
+1. **Drive ID and Path Issues**:
+   - Ensure that the Drive ID and path are correctly formatted.
+   - The code has a mix of using `Sites` and `Drives` that need to be consistent.
+
+2. **File Upload Method**:
+   - Ensure the file upload method to the correct endpoint with proper path construction.
+
+Here's a revised version of your code with corrections:
+
+```csharp
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = "your-client-secret"; // Client Secret (ensure this is stored securely)
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        using (var fileStream = new FileStream(filePath, FileMode.Open))
+        {
+            // Fetch the drive item using the Site ID
+            var site = await graphClient.Sites.GetByPath("/sites/PowerBI", "gpslocums.sharepoint.com").Request().GetAsync();
+
+            // Ensure the target folder path is correct
+            string targetFolderPath = "/sites/PowerBI/Shared Documents";
+            
+            // Upload the file
+            var uploadedFile = await graphClient.Sites[site.Id]
+                .Drive
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .PutAsync<DriveItem>(fileStream);
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
