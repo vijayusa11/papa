@@ -1,0 +1,2 @@
+Microsoft.Graph.ServiceException: 'Code: BadRequest
+Message: Entity only allows writes with a JSON Content-Type header.
