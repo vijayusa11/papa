@@ -1,0 +1,53 @@
+want to prevent duplicacy on combination of TimesheetDate, EmployeeName, ProjectName, PracticeName
+
+// non azure
+string strExportPath = Path.Combine(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()), "Export_" + DateTime.Now.Year + "_" + DateTime.Now.Month + "_" + DateTime.Now.Day + "_" + DateTime.Now.Hour + "_" + DateTime.Now.Minute + "_" + DateTime.Now.Millisecond + ".csv");
+    if (Directory.Exists(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim())) == false)
+        Directory.CreateDirectory(Server.MapPath("~/Uploaded/Temp/" + Common.GetCurrentUserId().ToString().Trim()));
+    StreamWriter sw = new StreamWriter(strExportPath);
+    string strData = string.Empty;
+
+    if (Request["ExportHeader"] != null)
+    {
+        strData = string.Empty;
+        strData = Convert.ToString("Date,Staff Member,Project,Practice, Created Date, Rate");
+        sw.Write(strData.Substring(0, strData.Length));
+        sw.Write(sw.NewLine);
+    }
+
+    if (oList != null)
+    {
+
+        foreach (var oEintity in oList)
+        {
+            strData = string.Empty;
+            //strdata += common.getexportstring("") + ",";
+
+            if(oEintity.TimesheetDate != null)
+            strData += Common.GetExportString(Convert.ToDateTime(oEintity.TimesheetDate).ToString("dd/MM/yyyy")) + ",";
+            else
+            strData += string.Empty + ",";
+
+            strData += Common.GetExportString(Convert.ToString(oEintity.EmployeeName)) + ",";
+            strData += Common.GetExportString(Convert.ToString(oEintity.ProjectName)) + ",";
+            strData += Common.GetExportString(Convert.ToString(oEintity.PracticeName)) + ",";
+
+            if (oEintity.CreatedDate != null)
+            strData += Common.GetExportString(Convert.ToDateTime(oEintity.CreatedDate).ToString("dd/MM/yyyy")) + ",";
+            else
+            strData += string.Empty + ",";
+
+            strData += Common.GetExportString(Convert.ToString(oEintity.Rate)) + ",";
+
+            
+            sw.Write(strData.Substring(0, strData.Length - 1));
+            sw.Write(sw.NewLine);
+		}
+        sw.Close();
+        strreturn = Path.GetFileName(strExportPath.Trim());
+    }
+    oList = null;
+    objBL.Dispose();
+
+
+return (strreturn);
