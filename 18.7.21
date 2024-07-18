@@ -1,0 +1,67 @@
+Let's try a different approach to ensure the file gets uploaded correctly to SharePoint using the Microsoft Graph API. The issue could be related to the path format or how the file stream is being handled. Here's an updated version of the method:
+
+1. **Correctly format the folder path**.
+2. **Use the appropriate Graph API method**.
+
+```csharp
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = "YOUR_CLIENT_SECRET"; // Client Secret
+        string driveId = "b!2L0fIMt9J0mMDW_fuKB89Pngg3dAgy5Lidag8_qKydAJ4JeNq0iRQLtD8qa7lOud"; // Drive ID
+        string targetFolderPath = "QXTest"; // Target folder path on SharePoint
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+        
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        // Use a MemoryStream instead of FileStream
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var driveItem = await graphClient.Drives[driveId]
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .PutAsync<DriveItem>(stream);
+                
+            Console.WriteLine($"File {driveItem.Name} uploaded successfully to {targetFolderPath}.");
+        }
+    }
+    catch (ServiceException ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"General error: {ex.Message}");
+    }
+}
+```
+
+### Key Points:
+
+1. **MemoryStream**: Use a `MemoryStream` instead of a `FileStream` for better handling of the file content.
+2. **Path Formatting**: Ensure the `targetFolderPath` is correctly formatted.
+
+### Troubleshooting Tips:
+
+- Ensure that the `targetFolderPath` exists in your SharePoint document library. If it doesn't, create it manually or programmatically.
+- Check if the file content is correctly read into the `MemoryStream`.
+- Ensure your app registration in Azure has the necessary permissions to upload files to SharePoint.
+
+If this still doesn't resolve the issue, we may need to further investigate the specific error messages or logs to pinpoint the exact problem.
