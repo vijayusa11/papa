@@ -1,0 +1,55 @@
+The error message `Microsoft.Graph.ServiceException: 'Code: BadRequest Message: Entity only allows writes with a JSON Content-Type header.` indicates that the content type header needs to be specified as JSON. Let's update the method to handle this.
+
+Here is the revised method:
+
+```csharp
+public async Task ExampleMethod(string filePath)
+{
+    try
+    {
+        string tenantId = "6211af6a-7b73-4c38-9c98-d1c2f85da093"; // Tenant ID
+        string clientId = "57876615-02e7-491c-9fd0-419a9a690a80"; // Client ID
+        string clientSecret = "YOUR_CLIENT_SECRET"; // Client Secret
+        string driveId = "b!2L0fIMt9J0mMDW_fuKB89Pngg3dAgy5Lidag8_qKydAJ4JeNq0iRQLtD8qa7lOud"; // Drive ID
+        string targetFolderPath = "Test"; // Target folder path on SharePoint
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+        
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                return Task.CompletedTask;
+            }));
+
+        using (var fileStream = new FileStream(filePath, FileMode.Open))
+        {
+            var driveItem = await graphClient.Drives[driveId]
+                .Root
+                .ItemWithPath($"{targetFolderPath}/{Path.GetFileName(filePath)}")
+                .Content
+                .Request()
+                .Header("Content-Type", "application/json")
+                .PutAsync<DriveItem>(fileStream);
+            
+            Console.WriteLine($"File {driveItem.Name} uploaded successfully to {targetFolderPath}.");
+        }
+    }
+    catch (ServiceException ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+    }
+}
+```
+
+### Key Points:
+1. **Content-Type Header**: Ensure the request includes the `Content-Type` header as `application/json`.
+2. **Graph Client Configuration**: The `graphClient` is configured to accept JSON responses.
+
+By including the `Content-Type` header explicitly in the request, this should resolve the `BadRequest` error related to the JSON content type.
