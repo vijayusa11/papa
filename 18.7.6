@@ -1,0 +1,30 @@
+here is dropdown code - 
+
+ @if (Common.IsCurrentUserAdmin() == true)
+  {
+      <select id="ddlWorkType" name="ddlWorkType" class="form-control pull-right" style="width: 150px !important">
+          <option value="0" selected="selected">All</option>
+          <option value="1">Discrepancies</option>
+          <option value="2">Non- Discrepancies</option>
+      </select>
+      <label class="pull-right" style="padding-left: 5px; padding-right: 5px;">
+          Type
+      </label>
+  }
+  
+  here is code for to print data from table -
+      if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+    {
+        strreturn = strreturn + "<td align='center' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+    }
+    else
+    {
+        strreturn = strreturn + "<td align='center' >" + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+    }
+	
+now i want to bind dropdown so that 
+if option value="1" then will go into strreturn = strreturn + "<td align='center' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+if option value="2" then will go into strreturn = strreturn + "<td align='center' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+and bydefault when page load it will get all data with all dropdown
+
+code is in asp.net framework 4.7
