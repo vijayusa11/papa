@@ -1,0 +1,97 @@
+To use `XSSFWorkbook` for reading an Excel file and inserting its data into a SQL Server database, you can follow the structure below. This assumes that the CSV data has been previously converted to an Excel format and saved as an `.xlsx` file.
+
+Here is the updated method to read from an Excel file using `XSSFWorkbook` and insert the data into the database:
+
+```csharp
+private void InsertIntoDatabase(string excelFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var fileStream = new FileStream(excelFilePath, FileMode.Open, FileAccess.Read))
+                {
+                    var workbook = new XSSFWorkbook(fileStream);
+                    ISheet sheet = workbook.GetSheet(sheetName);
+
+                    if (sheet == null)
+                    {
+                        LogToErrorFile($"Sheet '{sheetName}' not found in workbook.");
+                        return;
+                    }
+
+                    for (int i = 1; i <= sheet.LastRowNum; i++)
+                    {
+                        var row = sheet.GetRow(i);
+                        if (row == null)
+                        {
+                            LogToErrorFile($"Row {i} is null.");
+                            continue;
+                        }
+
+                        var dateCell = row.GetCell(0);
+                        var agentCell = row.GetCell(1);
+                        var timesheetOwnerCell = row.GetCell(2);
+                        var totalTalkingTimeCell = row.GetCell(3);
+
+                        if (dateCell == null || agentCell == null || timesheetOwnerCell == null || totalTalkingTimeCell == null)
+                        {
+                            LogToErrorFile($"One or more cells in row {i} are null.");
+                            continue;
+                        }
+
+                        DateTime date = dateCell.DateCellValue;
+                        string agent = agentCell.StringCellValue;
+                        string timesheetOwner = timesheetOwnerCell.StringCellValue;
+                        string totalTalkingTime = totalTalkingTimeCell.StringCellValue;
+
+                        insertCommand.Parameters.Clear();
+                        insertCommand.Parameters.AddWithValue("@Date", date);
+                        insertCommand.Parameters.AddWithValue("@Agent", agent);
+                        insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        insertCommand.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+**Explanation:**
+
+1. **Reading Excel File:** The method uses `XSSFWorkbook` to open and read the Excel file.
+2. **Retrieving Sheet:** It retrieves the specified sheet from the workbook.
+3. **Iterating Through Rows:** It iterates through the rows of the sheet, starting from row 1 to skip the header row.
+4. **Reading Cell Values:** It reads the values from each relevant cell in the row.
+5. **Inserting Data:** It inserts the data into the SQL Server database using the `SqlCommand`.
+
+**Usage:**
+
+Call this method with the path to your Excel file and the sheet name:
+
+```csharp
+InsertIntoDatabase("path_to_your_excel_file.xlsx", "YourSheetName");
+```
+
+Ensure your connection string in the `ConfigurationManager` is correctly set up, and the table schema matches the data being inserted. If you have further requirements or issues, feel free to ask!
