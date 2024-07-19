@@ -1,0 +1,109 @@
+To format the date as `dd-MM-yyyy` before inserting it into the database, you can use `DateTime.ToString` with the appropriate format. Here’s the updated method with date formatting:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim();
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Split agent and owner
+                        var parts = agentExtensionWithOwner.Split(' ', 2);
+
+                        if (parts.Length < 2)
+                        {
+                            LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = parts[0].Trim();
+                        var timesheetOwner = parts[1].Trim();
+
+                        // Format today's date
+                        string formattedDate = DateTime.Today.ToString("dd-MM-yyyy");
+
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", formattedDate);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Key Updates:
+
+1. **Date Formatting:**
+   - `string formattedDate = DateTime.Today.ToString("dd-MM-yyyy");` formats the date to `dd-MM-yyyy`.
+
+2. **Parameter Assignment:**
+   - The `@Date` parameter in the SQL command is now set to `formattedDate`.
+
+Ensure your database schema can handle the date format. If the database expects the date in `yyyy-MM-dd` format, you may need to adjust the format or perform conversion accordingly.
