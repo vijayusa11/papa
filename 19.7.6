@@ -1,0 +1,56 @@
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                           VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfData)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split('\t');
+
+                        if (values.Length < 8)
+                        {
+                            continue;
+                        }
+
+                        var agentExtension = values[0].Trim();
+                        var timesheetOwner = values[1].Trim();
+                        var totalTalkingTime = values[7].Trim();
+
+                        insertCommand.Parameters.Clear();
+                        insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                        insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                        insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        insertCommand.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
