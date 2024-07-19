@@ -1,0 +1,117 @@
+To correctly parse the `Agent` and `TimesheetOwner` values from the CSV, where `Agent` and `TimesheetOwner` are in the same cell but separated by a space, you'll need to adjust the parsing logic. Specifically, you should split the `Agent` and `TimesheetOwner` values based on the space and ensure that you only take the numeric part for `Agent` and the non-numeric part for `TimesheetOwner`.
+
+Here's how you can update your method:
+
+1. **Extract and Split Values:** Use logic to differentiate between numeric and non-numeric parts.
+2. **Ensure Correct Insertion:** Properly map each value to the corresponding column in the database.
+
+Here’s the updated method:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim();
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Split agent and owner
+                        var parts = agentExtensionWithOwner.Split(' ', 2);
+
+                        if (parts.Length < 2)
+                        {
+                            LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = parts[0].Trim();
+                        var timesheetOwner = parts[1].Trim();
+
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation:
+
+1. **Splitting Agent and TimesheetOwner:** 
+   - `agentExtensionWithOwner.Split(' ', 2)` splits the `Agent Extension` into two parts: the numeric `Agent` and the `TimesheetOwner`. This assumes that the `Agent Extension` and `TimesheetOwner` are separated by a space and the `TimesheetOwner` might include spaces.
+   - The `2` parameter ensures only the first space is used for splitting, preserving any spaces in the `TimesheetOwner`.
+
+2. **Error Handling:** 
+   - Added error checks for incorrect formats and missing values.
+
+3. **Insertion Logic:** 
+   - Checks that `Agent` and `TimesheetOwner` are not empty before inserting.
+
+Make sure to test this code with your CSV file to ensure it handles your data as expected. Adjustments might be necessary based on the exact format of your CSV data.
