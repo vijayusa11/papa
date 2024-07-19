@@ -1,0 +1,103 @@
+If you are encountering an error related to accessing the file path, it could be due to several reasons such as file permissions, file locks, or incorrect file paths. Let's update the method to ensure we handle file access issues properly and log detailed error messages for easier troubleshooting.
+
+Here's the updated method with additional error handling:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split('\t');
+
+                        if (values.Length < 8)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = values[0].Trim();
+                        var timesheetOwner = values[1].Trim();
+                        var totalTalkingTime = values[7].Trim();
+
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+**Key Additions and Modifications:**
+
+1. **File Existence Check:** Before attempting to open the file, we check if it exists and log an error if it doesn't.
+2. **Detailed Error Logging:** Added more detailed error logging for different types of exceptions (IOException, UnauthorizedAccessException, and general exceptions).
+3. **Skipping Lines:** Added logging for skipped lines due to insufficient values or empty fields.
+
+**Usage:**
+
+Call the method with the path to your CSV file:
+
+```csharp
+InsertIntoDatabase("path_to_your_csv_file.csv");
+```
+
+Ensure that the file path is correct, the file is accessible by the application, and the application has the necessary permissions to read the file. If the issue persists, the detailed error logging should help you pinpoint the problem.
