@@ -1,0 +1,2 @@
+i have getting var line values in 1001 James Blackburn,,0,0,0,0,0,0,00:00:00 this format
+now want to insert 1001 in column B that is numeric value, then non numeric value "James Blackburn" in column C, last 00:00:00 in column D and today date in column A
