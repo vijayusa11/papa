@@ -1,0 +1,96 @@
+using System;
+using System.Data.SqlClient;
+using System.IO;
+using System.Text;
+
+public class DatabaseToCsvAppender
+{
+    private string connectionString;
+    private string tableName;
+
+    public DatabaseToCsvAppender(string connectionString, string tableName)
+    {
+        this.connectionString = connectionString;
+        this.tableName = tableName;
+    }
+
+    public void AppendDataToCsv(string csvFilePath)
+    {
+        try
+        {
+            // Fetch data from the database
+            var data = FetchDataFromDatabase();
+
+            // Append data to the CSV file
+            WriteDataToCsv(csvFilePath, data);
+        }
+        catch (Exception ex)
+        {
+            LogToErrorFile(ex.Message);
+            StartConsoleWriting(ex.Message);
+            throw;
+        }
+    }
+
+    private DataTable FetchDataFromDatabase()
+    {
+        var dataTable = new DataTable();
+
+        using (var connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+            string query = $"SELECT * FROM {tableName}";
+
+            using (var command = new SqlCommand(query, connection))
+            {
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(dataTable);
+                }
+            }
+        }
+
+        return dataTable;
+    }
+
+    private void WriteDataToCsv(string csvFilePath, DataTable data)
+    {
+        bool fileExists = File.Exists(csvFilePath);
+        using (var writer = new StreamWriter(csvFilePath, true, Encoding.UTF8))
+        {
+            if (!fileExists)
+            {
+                // Write header
+                WriteHeader(writer, data.Columns);
+            }
+
+            // Write rows
+            WriteRows(writer, data);
+        }
+    }
+
+    private void WriteHeader(StreamWriter writer, DataColumnCollection columns)
+    {
+        var header = string.Join(",", columns.Cast<DataColumn>().Select(column => column.ColumnName));
+        writer.WriteLine(header);
+    }
+
+    private void WriteRows(StreamWriter writer, DataTable data)
+    {
+        foreach (DataRow row in data.Rows)
+        {
+            var rowValues = string.Join(",", row.ItemArray.Select(field => field.ToString()));
+            writer.WriteLine(rowValues);
+        }
+    }
+
+    private void LogToErrorFile(string message)
+    {
+        // Implementation for logging errors to a file
+    }
+
+    private void StartConsoleWriting(string message)
+    {
+        // Implementation for logging messages to the console
+    }
+}
