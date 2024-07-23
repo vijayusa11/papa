@@ -1,0 +1,223 @@
+i want to append CSV file data directly from database table.
+below is both method for Append data and data insertion method and other supporting methods as well -
+
+public void AppendDailyPatientSiteCsvData(string filePath, ISheet sheet, XSSFWorkbook workbook, string sheetName)
+    {
+        try
+        {
+            XSSFCellStyle numberStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+            numberStyle.DataFormat = workbook.CreateDataFormat().GetFormat("General");
+
+            XSSFCellStyle dateStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+            dateStyle.DataFormat = workbook.CreateDataFormat().GetFormat("dd-MM-yyyy");
+
+            XSSFCellStyle timeStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+            timeStyle.DataFormat = workbook.CreateDataFormat().GetFormat("hh:mm:ss");
+
+            using (TextFieldParser reader = new TextFieldParser(filePath))
+            {
+                reader.HasFieldsEnclosedInQuotes = true;
+                reader.SetDelimiters("\t");
+
+                int rowIndex = sheet.LastRowNum + 1; // Start appending from the last row
+                bool headerCreated = rowIndex > 0;  // Check if the sheet already has rows
+
+                while (!reader.EndOfData)
+                {
+                    var valueLines = reader.ReadFields();
+                    if (headerCreated)
+                    {
+                        CreateHeaderRow(sheet, numberStyle);
+                        headerCreated = false;
+                    }
+                    else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                    {
+                        ProcessDataRows(sheet, rowIndex, valueLines, dateStyle, numberStyle, timeStyle);
+                        rowIndex++;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogToErrorFile(ex.Message);
+            StartConsoleWriting(ex.Message);
+            throw;
+        }
+    }
+	
+	
+	
+	
+	private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                           VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim();
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Split agent and owner
+                        var parts = agentExtensionWithOwner.Split(' ', 2);
+
+                        if (parts.Length < 2)
+                        {
+                            LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = parts[0].Trim();
+                        var timesheetOwner = parts[1].Trim();
+
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+	
+	
+	public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    XSSFWorkbook workbook = null;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        if (File.Exists(outputFilePath))
+        {
+            // Open existing workbook
+            using (FileStream fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read))
+            {
+                workbook = new XSSFWorkbook(fs);
+            }
+        }
+        else
+        {
+            // Create new workbook
+            workbook = new XSSFWorkbook();
+        }
+
+        ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            AppendDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Append data from CSV file into sheet
+        }
+
+        using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+        {
+            workbook.Write(stream);
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    finally
+    {
+        workbook?.Close();
+    }
+    return outputFilePath;
+}
+
+private void ProcessFiles(List<FileInfo> fileList)
+{
+    try
+    {
+        var dailyActivityFile = fileList.FirstOrDefault(t => t.Name.ToUpper().Contains("Global".ToUpper()) && IsCsvFile(t));
+        ProcessFile(dailyActivityFile, dailyActivitySheetName, "Daily Activity file not found.");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+              
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+               // string outputFilePath = CreateExcelForDailyPatientSiteFile(file, sheetName);
+                string outputFilePath1 = CreateExcelForDailyPatientSiteFile(file, sheetName);
+               
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
