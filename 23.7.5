@@ -1,0 +1,122 @@
+If you want to ensure the CSV file only contains data from the database table (i.e., overwrite existing data with the new data from the database), you can modify the code to overwrite the file instead of appending. Here’s the revised version:
+
+```csharp
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+using System.Linq;
+using System.Text;
+
+public class DatabaseToCsvAppender
+{
+    private string connectionString;
+    private string tableName;
+
+    public DatabaseToCsvAppender(string connectionString, string tableName)
+    {
+        this.connectionString = connectionString;
+        this.tableName = tableName;
+    }
+
+    public void OverwriteCsvWithDataFromDatabase(string csvFilePath)
+    {
+        try
+        {
+            // Fetch data from the database
+            var data = FetchDataFromDatabase();
+
+            // Overwrite CSV file with data from the database
+            WriteDataToCsv(csvFilePath, data);
+        }
+        catch (Exception ex)
+        {
+            LogToErrorFile(ex.Message);
+            StartConsoleWriting(ex.Message);
+            throw;
+        }
+    }
+
+    private DataTable FetchDataFromDatabase()
+    {
+        var dataTable = new DataTable();
+
+        using (var connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+            string query = $"SELECT * FROM {tableName}";
+
+            using (var command = new SqlCommand(query, connection))
+            {
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(dataTable);
+                }
+            }
+        }
+
+        return dataTable;
+    }
+
+    private void WriteDataToCsv(string csvFilePath, DataTable data)
+    {
+        using (var writer = new StreamWriter(csvFilePath, false, Encoding.UTF8))
+        {
+            // Write header
+            WriteHeader(writer, data.Columns);
+
+            // Write rows
+            WriteRows(writer, data);
+        }
+    }
+
+    private void WriteHeader(StreamWriter writer, DataColumnCollection columns)
+    {
+        var header = string.Join(",", columns.Cast<DataColumn>().Select(column => column.ColumnName));
+        writer.WriteLine(header);
+    }
+
+    private void WriteRows(StreamWriter writer, DataTable data)
+    {
+        foreach (DataRow row in data.Rows)
+        {
+            var rowValues = string.Join(",", row.ItemArray.Select(field => field.ToString()));
+            writer.WriteLine(rowValues);
+        }
+    }
+
+    private void LogToErrorFile(string message)
+    {
+        // Implementation for logging errors to a file
+    }
+
+    private void StartConsoleWriting(string message)
+    {
+        // Implementation for logging messages to the console
+    }
+}
+```
+
+### Explanation:
+
+1. **OverwriteCsvWithDataFromDatabase**: This method fetches the data from the database and overwrites the CSV file with this data.
+2. **WriteDataToCsv**: This method now opens the `StreamWriter` in overwrite mode (`false` as the second argument) to ensure it overwrites the existing file.
+
+### Usage:
+
+```csharp
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        string connectionString = "your-connection-string-here";
+        string tableName = "your-table-name-here";
+        string csvFilePath = "path-to-your-csv-file.csv";
+
+        var appender = new DatabaseToCsvAppender(connectionString, tableName);
+        appender.OverwriteCsvWithDataFromDatabase(csvFilePath);
+    }
+}
+```
+
+This updated code will overwrite the CSV file with the data from the specified database table, ensuring no additional data remains in the CSV file. Adjust the `connectionString`, `tableName`, and `csvFilePath` variables as needed for your environment.
