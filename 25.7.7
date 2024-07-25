@@ -1,0 +1,59 @@
+If you want to handle the case where `IDS` is null and pass the employee email ID in the `emailList`, you can add a condition to check if `IDS` is null or empty. Here's how you can update your method to include this logic:
+
+1. Check if `IDS` is null or empty.
+2. If it is, fetch the email ID of the employee directly.
+3. If it is not, proceed with your original logic.
+
+Here's the updated code:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        List<EmailModel> emailList = new List<EmailModel>();
+        
+        if (string.IsNullOrEmpty(IDS))
+        {
+            // Handle the case when IDS is null or empty
+            emailList = oBLTimesheetProcess.GetEmployeeEmailWithoutTimesheet();
+        }
+        else
+        {
+            emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+        }
+
+        foreach (var email in emailList)
+        {
+            if (!string.IsNullOrEmpty(email.Email))
+            {
+                if (strResult == string.Empty)
+                {
+                    strResult = email.Email;
+                }
+                else
+                {
+                    strResult = strResult + "," + email.Email;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        // Log the exception or inspect it
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+In this code:
+- `GetEmployeeEmailWithoutTimesheet` is a new method you need to implement in your `BLTimesheetProcess` class to fetch the email ID of employees when `IDS` is null or empty.
+- The existing logic of fetching emails when `IDS` is provided remains the same.
+- Exception handling is improved to give more detailed error messages.
