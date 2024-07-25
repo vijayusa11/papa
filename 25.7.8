@@ -1,0 +1,49 @@
+To modify the code such that if `IDS` is null, a default email ID is used, you can add a condition to check if `IDS` is null or empty. If it is, you directly set `strResult` to the default email ID. Here's how you can achieve that:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (string.IsNullOrEmpty(IDS))
+        {
+            // If IDS is null or empty, use a default email ID
+            strResult = "defaultemail@example.com";
+        }
+        else
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (strResult == string.Empty)
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+In this code:
+- If `IDS` is null or empty, `strResult` is set to `"defaultemail@example.com"`.
+- If `IDS` is not null or empty, the original logic of fetching and processing the email list is executed.
+- Exception handling is included to provide detailed error messages.
