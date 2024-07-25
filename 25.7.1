@@ -1,0 +1,64 @@
+getting Date in datetime 23-07-2024 00:00 but looking for date only 23-07-2024
+below is methods to get data
+
+        public void OverwriteCsvWithDataFromDatabase(string csvFilePath)
+        {
+            try
+            {
+                // Fetch data from the database
+                var data = FetchDataFromDatabase();
+
+                // Append data to the CSV file
+                WriteDataToCsv(csvFilePath, data);
+            }
+            catch (Exception ex)
+            {
+                LogToErrorFile(ex.Message);
+                StartConsoleWriting(ex.Message);
+                throw;
+            }
+        }
+        private DataTable FetchDataFromDatabase()
+        {
+            var dataTable = new DataTable();
+
+            using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+            {
+                connection.Open();
+                string query = $"SELECT * from OutputFileDetails";
+
+                using (var command = new SqlCommand(query, connection))
+                {
+                    using (var adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(dataTable);
+                    }
+                }
+            }
+
+            return dataTable;
+        }
+        private void WriteDataToCsv(string csvFilePath, DataTable data)
+        {
+            using (var writer = new StreamWriter(csvFilePath, false, Encoding.UTF8))
+            {
+                // Write header
+                WriteHeader(writer, data.Columns);
+
+                // Write rows
+                WriteRows(writer, data);
+            }
+        }
+        private void WriteHeader(StreamWriter writer, DataColumnCollection columns)
+        {
+            var header = string.Join(",", columns.Cast<DataColumn>().Select(column => column.ColumnName));
+            writer.WriteLine(header);
+        }
+        private void WriteRows(StreamWriter writer, DataTable data)
+        {
+            foreach (DataRow row in data.Rows)
+            {
+                var rowValues = string.Join(",", row.ItemArray.Select(field => field.ToString()));
+                writer.WriteLine(rowValues);
+            }
+        }
