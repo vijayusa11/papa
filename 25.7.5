@@ -1,0 +1,39 @@
+To modify the provided C# code to include the email of employees whose timesheet ID is null, you can update the logic inside the `foreach` loop. Specifically, you'll need to check for null timesheet IDs and add the corresponding employee email to the `emailList`. Here's how you can adjust your code:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+        foreach (var email in emailList)
+        {
+            // Assuming `TimesheetID` is a property of `email`
+            if (email.TimesheetID == null && !string.IsNullOrEmpty(email.Email))
+            {
+                if (strResult == string.Empty)
+                {
+                    strResult = email.Email;
+                }
+                else
+                {
+                    strResult = strResult + "," + email.Email;
+                }
+            }
+        }
+    }
+    catch
+    {
+        strResult = "error";
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+In this code:
+- I've added a check for `email.TimesheetID == null` to see if the timesheet ID is null.
+- If it is null, it adds the corresponding `email.Email` to `strResult`.
+
+Make sure that your `email` object has a `TimesheetID` property and it can be compared to `null`. Adjust the property names if necessary based on your actual object structure.
