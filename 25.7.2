@@ -1,0 +1,109 @@
+To ensure that only the date part (e.g., `23-07-2024`) is written to the CSV file, you can modify the `WriteRows` method to check the data type of each field and format `DateTime` values accordingly.
+
+Here's the updated code with this change:
+
+```csharp
+using System;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+using System.Linq;
+using System.Text;
+
+public class YourClassName
+{
+    public void OverwriteCsvWithDataFromDatabase(string csvFilePath)
+    {
+        try
+        {
+            // Fetch data from the database
+            var data = FetchDataFromDatabase();
+
+            // Append data to the CSV file
+            WriteDataToCsv(csvFilePath, data);
+        }
+        catch (Exception ex)
+        {
+            LogToErrorFile(ex.Message);
+            StartConsoleWriting(ex.Message);
+            throw;
+        }
+    }
+
+    private DataTable FetchDataFromDatabase()
+    {
+        var dataTable = new DataTable();
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+            string query = "SELECT * FROM OutputFileDetails";
+
+            using (var command = new SqlCommand(query, connection))
+            {
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(dataTable);
+                }
+            }
+        }
+
+        return dataTable;
+    }
+
+    private void WriteDataToCsv(string csvFilePath, DataTable data)
+    {
+        using (var writer = new StreamWriter(csvFilePath, false, Encoding.UTF8))
+        {
+            // Write header
+            WriteHeader(writer, data.Columns);
+
+            // Write rows
+            WriteRows(writer, data);
+        }
+    }
+
+    private void WriteHeader(StreamWriter writer, DataColumnCollection columns)
+    {
+        var header = string.Join(",", columns.Cast<DataColumn>().Select(column => column.ColumnName));
+        writer.WriteLine(header);
+    }
+
+    private void WriteRows(StreamWriter writer, DataTable data)
+    {
+        foreach (DataRow row in data.Rows)
+        {
+            var rowValues = row.ItemArray.Select(field =>
+            {
+                if (field is DateTime dateTime)
+                {
+                    return dateTime.ToString("dd-MM-yyyy");
+                }
+                return field.ToString();
+            });
+
+            var rowString = string.Join(",", rowValues);
+            writer.WriteLine(rowString);
+        }
+    }
+
+    private void LogToErrorFile(string message)
+    {
+        // Implement your logging logic here
+    }
+
+    private void StartConsoleWriting(string message)
+    {
+        // Implement your console writing logic here
+    }
+}
+```
+
+In this update:
+
+- The `WriteRows` method now includes a `Select` statement that checks if each `field` is of type `DateTime`.
+- If it is a `DateTime`, it formats the date to `dd-MM-yyyy` using `ToString("dd-MM-yyyy")`.
+- Other types are converted to strings as usual with `field.ToString()`.
+
+This ensures that only the date part is written to the CSV file for any `DateTime` fields.
