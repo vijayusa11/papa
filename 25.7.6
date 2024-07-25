@@ -1,0 +1,47 @@
+To get more information about the exception, it's a good idea to catch the specific exception and log or inspect the inner exception. Here's how you can modify your `try-catch` block to get more details:
+
+1. Catch the specific exception.
+2. Log or inspect the `InnerException` to understand the root cause.
+
+Here’s the updated code:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+        foreach (var email in emailList)
+        {
+            // Assuming `TimesheetID` is a property of `email`
+            if (email.TimesheetID == null && !string.IsNullOrEmpty(email.Email))
+            {
+                if (strResult == string.Empty)
+                {
+                    strResult = email.Email;
+                }
+                else
+                {
+                    strResult = strResult + "," + email.Email;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        // Log the exception or inspect it
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+By doing this, you'll be able to see the specific error message and the inner exception message if it exists, which will help you diagnose the issue more effectively.
+
+Additionally, ensure that `GetSelectedEmployeeEmail` in your `BLTimesheetProcess` class is implemented correctly and that it handles the `IDS` parameter as expected. If there is any issue within this method, the exception details should help pinpoint the
