@@ -1,0 +1,312 @@
+Here R.totalhours is decimal and we are not able to check condition so result set getting wrong
+so please solve issue
+
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListforSubmittedStatus]      
+(      
+ @OrderBy varchar(1000),--=AllDates asc',       
+ @StartRow int,--=1,       
+ @EndRow int,--=20,      
+       
+ @EmployeeName nvarchar(100) ,--=',      
+ @TimesheetDate nvarchar(10) ,--=',      
+ @ProjectName nvarchar(100) ,--=',      
+ @PracticeName nvarchar(100) ,--=',      
+       
+ @TotalHours nvarchar(10) ,--=',      
+ @TotalMins nvarchar(20) ,--=',      
+ @Rate nvarchar(5) ,--=',      
+ @TotalRate nvarchar(10) ,--=',      
+      
+    
+    
+ @AdditionalHours  nvarchar(5) ,--=',      
+ @RotaDate  nvarchar(10) ,--=',      
+ @RotaPracticeName  nvarchar(100) ,--=',      
+ @RotaShiftTime  nvarchar(100) ,--=',      
+ @RotaAdditionalHours  nvarchar(10) ,--=' ,    
+ @RotaTotalHours  nvarchar(10) ,--=',      
+ @RotaTotalMins  nvarchar(10) ,--=',      
+       
+ @RateTypeId nvarchar(10) ,--=',      
+ @WorkTypeId nvarchar(10) ,--=0',      
+ @Status nvarchar(50) ,--=',      
+    
+ @FromDate nvarchar(10) ,--=01/07/2024',      
+ @ToDate nvarchar(10) ,--=30/07/2024',      
+ @TimesheetStatusId nvarchar(10) ,--=6',      
+ @AuthoriserName nvarchar(100) ,--=',      
+ @AuthorisedDate nvarchar(20) ,--=',      
+       
+ @CreatedDate nvarchar(20) ,--=',      
+ @SubmittedDate nvarchar(20) ,--=',      
+       
+ @EmployeeId nvarchar(10) ,--=',      
+       
+ @ViewerId int =1,      
+ @ForEmployee bit  = 0,   
+ @IsStatFlag INT ,--=0,  --1 for not match ,--='2 for match , all  
+ @mystaff bit = 0,      
+ @TotalCount int out      
+)      
+As           
+BEGIN      
+      
+ SET NOCOUNT ON;      
+ declare @IsLineManager bit;      
+ declare @IsFinanceController bit;      
+ declare @IsAdmin bit;      
+ declare @SELECT varchar(8000);      
+ declare @ColList varchar(8000);      
+ declare @Where varchar(8000);      
+ declare @i int;       
+ declare @i2 int;      
+ declare @tmp varchar(8000);      
+ declare @dec varchar(8000);      
+ declare @f varchar(8000);      
+ declare @d varchar(8000);      
+ declare @Symbol char(2);      
+ declare @SQL varchar(8000);      
+ declare @Sort varchar(8000);      
+ declare @strLen int;      
+ declare @rolename nvarchar(500);      
+      
+       
+ WITH ListDates(AllDates) AS      
+ (          
+ SELECT convert(datetime,@FromDate,103) AS DATE      
+    UNION ALL      
+    SELECT DATEADD(DAY,1,AllDates)      
+    FROM ListDates       
+    WHERE AllDates < convert(datetime,@ToDate,103)      
+ )      
+      
+ SELECT AllDates into #ListDate      
+ FROM ListDates      
+ OPTION (MAXRECURSION 1000)      
+       
+   
+ SET @IsAdmin = 0;      
+ SELECT @IsLineManager=ISNULL(IsLineManager,0), @IsFinanceController=ISNULL(IsFinanceController,0), @rolename = R.RoleName FROM Employees       
+ LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId       
+ WHERE EmployeeId = @ViewerId      
+
+
+ IF (@IsFinanceController = 1 OR @rolename ='Basic Admin')      
+	 BEGIN      
+	  SET @IsAdmin = 1      
+	 END      
+       
+       
+ set @SELECT = 'SELECT   '       
+ set @SELECT = @SELECT + '  LD.AllDates,'      
+ set @SELECT = @SELECT + '  t1.TimesheetId,'      
+ set @SELECT = @SELECT + '  t1.EmployeeId,' 
+ set @SELECT = @SELECT + '  R.Rotaid,'  
+ set @SELECT = @SELECT + '  t1.TimesheetDate,'       
+ set @SELECT = @SELECT + '  t1.ProjectId,'       
+ set @SELECT = @SELECT + '  t1.TimesheetStatusId,'       
+ set @SELECT = @SELECT + '  CASE WHEN ISNULL(t1.IsAdditionalHours,0) =0 THEN ISNULL(t1.TotalHours,0) ELSE 0 END TotalHours,'  
+ set @SELECT = @SELECT + '  R.TotalHours RotaTotalHours,'      
+ set @SELECT = @SELECT + '  CASE WHEN ISNULL(t1.IsAdditionalHours,0) =1 THEN ISNULL(t1.TotalHours,0) ELSE 0 END AdditionalHours,'      
+ set @SELECT = @SELECT + '  isnull(t1.TotalMins,0) TotalMins,'      
+ set @SELECT = @SELECT + '  isnull(t1.Rate,0) Rate,'      
+ set @SELECT = @SELECT + '  isnull(t1.TotalRate,0) TotalRate,'      
+ set @SELECT = @SELECT + '  R.RotaDate,'      
+ set @SELECT = @SELECT + '  ISNULL(t5.PracticeName,'''') RotaPracticeName, '      
+ set @SELECT = @SELECT + '  R.ShiftTime RotaShiftTime,'      
+ set @SELECT = @SELECT + '  R.AdditionalHours RotaAdditionalHours,'      
+ set @SELECT = @SELECT + '  R.HoursType RotaHoursType,'      
+ 
+ set @SELECT = @SELECT + '  R.TotalMins RotaTotalMins,'      
+ set @SELECT = @SELECT + '  CASE WHEN t1.TimesheetId IS NOT NULL AND t1.TimesheetStatusId=1 THEN 1 ELSE 0 END isTimesheetSubmitted,'      
+ set @SELECT = @SELECT + '  isnull(t1.RateTypeId,0) RateTypeId,'      
+ set @SELECT = @SELECT + '  isnull(t1.WorkTypeId,0) WorkTypeId,'      
+ set @SELECT = @SELECT + '  isnull(t1.PracticeId,0) PracticeId,'      
+ set @SELECT = @SELECT + '  t1.AuthoriserName,'       
+ set @SELECT = @SELECT + '  t1.AuthorisedDate,'       
+       
+ set @SELECT = @SELECT + '  t2.Status,'      
+ set @SELECT = @SELECT + '  t3.ProjectName, '      
+ set @SELECT = @SELECT + '  isnull(t4.PracticeName,'''') PracticeName, '      
+ set @SELECT = @SELECT + '  (t6.FirstName + '' '' + t6.LastName) AS EmployeeName, '       
+ set @SELECT = @SELECT + '  t1.Comment,'       
+       
+ set @SELECT = @SELECT + ' WorkType=case t1.WorkTypeId when 1 then ''Locums Contractor'' when 2 then ''Inter Company'' else ''Paye'' end,'      
+ set @SELECT = @SELECT + ' RateType=case t1.RateTypeId when 1 then ''Per Day''  when 2 then ''Per Hour'' else '''' end,'      
+       
+ set @SELECT = @SELECT + '  t1.CreatedDate AS CreatedDate, '      
+ set @SELECT = @SELECT + '  t1.SUBMITTEDDATE AS SubmittedDate '      
+       
+ set @SELECT = @SELECT + '  FROM #ListDate LD'      
+ set @SELECT = @SELECT + '  LEFT JOIN TMS_Timesheets AS t1 on LD.AllDates=t1.TimesheetDate'      
+ set @SELECT = @SELECT + '  LEFT JOIN TMS_TimesheetStatuses AS t2 ON t1.TimesheetStatusId=t2.StatusId'      
+ set @SELECT = @SELECT + '  LEFT JOIN TMS_Projects AS t3 ON t1.ProjectId=t3.ProjectId'      
+ set @SELECT = @SELECT + '  LEFT JOIN RotaDetails AS r ON LD.AllDates=r.RotaDate AND (r.EmployeeId = t1.EmployeeId OR t1.TimesheetDate != NULL) AND (r.PracticeId=t1.PracticeId OR t1.TimesheetDate != NULL)'      
+ set @SELECT = @SELECT + '  LEFT JOIN TMS_Practices AS t4 ON t1.PracticeId= t4.PracticeId'      
+ set @SELECT = @SELECT + '  LEFT JOIN TMS_Practices AS t5 ON r.PracticeId= t5.PracticeId'      
+ set @SELECT = @SELECT + '  LEFT JOIN Employees AS t6 ON ISNULL(t1.EmployeeId,r.EmployeeId)=t6.EmployeeId'      
+       
+ set @SELECT = @SELECT + '  WHERE 1=1 and t6.EmployeeId is not null '      
+ if @IsAdmin <> 1      
+ begin      
+  set @SELECT = @SELECT + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'      
+  --if @IsLineManager = 1      
+  --begin      
+  -- set @SELECT = @SELECT + ' and t6.LineManagerId='+ convert(varchar,@ViewerId) + ''      
+  --end      
+ end      
+ else if @mystaff = 1      
+ begin      
+  set @SELECT = @SELECT + ' and (t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ' OR t1.AuthoriserId is null)'      
+ end      
+      
+/*******************/  
+ if (@TimesheetStatusId =1)  
+	begin  
+	
+		if(@IsStatFlag=1)   
+			begin   
+			print @IsStatFlag
+			  set @SELECT = @SELECT + ' and (t1.totalhours != r.totalhours OR R.totalhours = 0) '   --not match
+			end  
+		else
+			begin  
+		if(@IsStatFlag=2)
+			begin   
+				set @SELECT = @SELECT + ' and t1.totalhours = r.totalhours'   -- match
+			end  
+			  
+	end  
+ end  
+
+/**************************/  
+print '12'
+ if @AuthoriserName<>''      
+ begin      
+  set @SELECT = @SELECT + ' and isnull(t1.AuthoriserName,'''') like ''%'+ convert(varchar,@AuthoriserName) +'%'' '      
+ end       
+ if @AuthorisedDate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar(10), t1.AuthorisedDate,103)  like ''%'+ convert(varchar,@AuthorisedDate) +'%'' '      
+ end       
+ if @EmployeeName<>''      
+ begin      
+  set @SELECT = @SELECT + ' and (RTRIM(LTRIM(t6.FirstName)) + '' '' + RTRIM(LTRIM(t6.LastName)) like ''%'+ convert(varchar,@EmployeeName) +'%'')'      
+ end      
+      
+ if @TimesheetDate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and isnull(LD.AllDates,'''') like ''%'+ convert(varchar,@TimesheetDate) +'%'' '      
+ end       
+ if @ProjectName<>''      
+ begin      
+  set @SELECT = @SELECT + ' and isnull(t3.ProjectName,'''') like ''%'+ convert(varchar,@ProjectName) +'%'' '      
+ end       
+ if @PracticeName<>''      
+ begin      
+  set @SELECT = @SELECT + ' and isnull(t4.PracticeName,'''') like ''%'+ convert(varchar,@PracticeName) +'%'' '      
+ end       
+        
+ if @TotalHours<>''      
+ begin    
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(CASE WHEN ISNULL(t1.IsAdditionalHours,0) =0 THEN ISNULL(t1.TotalHours,0) ELSE 0 END,''0'')) like ''%'+ convert(varchar,@TotalHours) +'%'' '      
+ end       
+ if @TotalMins<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.TotalMins,''0'')) like ''%'+ convert(varchar,@TotalMins) +'%'' '      
+ end       
+  if @Rate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.Rate,''0'')) like ''%'+ convert(varchar,@Rate) +'%'' '      
+ end       
+ if @RotaAdditionalHours<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(r.AdditionalHours,''0'')) like ''%'+ convert(varchar,@RotaAdditionalHours) +'%'' '      
+ end       
+ if @RotaTotalHours<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(r.TotalHours,''0'')) like ''%'+ convert(varchar,@RotaTotalHours) +'%'' '      
+ end       
+ if @RotaTotalMins<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(r.TotalMins,''0'')) like ''%'+ convert(varchar,@RotaTotalMins) +'%'' '      
+ end       
+      
+ if @AdditionalHours<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(CASE WHEN ISNULL(t1.IsAdditionalHours,0) =1 THEN ISNULL(t1.TotalHours,0) ELSE 0 END,''0'')) like ''%'+ convert(varchar,@AdditionalHours) +'%'' '      
+ end       
+      
+ if @RotaDate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar(10), r.RotaDate,103) like ''%'+ convert(varchar,@RotaDate) +'%'' '      
+ end       
+      
+ if @RotaPracticeName<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t5.PracticeName,'''')) like ''%'+ convert(varchar,@RotaPracticeName) +'%'' '      
+ end       
+ if @RotaShiftTime<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(r.ShiftTime,''0'')) like ''%'+ convert(varchar,@RotaShiftTime) +'%'' '      
+ end       
+ if @TotalRate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.TotalRate,''0'')) like ''%'+ convert(varchar,@TotalRate) +'%'' '      
+ end       
+      
+ if @FromDate<>''      
+ begin      
+  set @SELECT = @SELECT + ' and LD.AllDates >= convert(datetime,'''+ @FromDate  + ''',103) '      
+ end       
+ if @ToDate<>''      
+ begin      
+  --set @SELECT = @SELECT + ' and t1.TimesheetDate <='''+ convert(varchar(10),@ToDate,103) +''' '      
+  set @SELECT = @SELECT + ' and LD.AllDates <= convert(datetime,'''+ @ToDate  + ''',103) '      
+ end       
+ if @RateTypeId<>''      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.RateTypeId,''0'')) ='''+ convert(varchar,@RateTypeId) +''' '      
+ end       
+ if @WorkTypeId<>'0'      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.WorkTypeId,''0'')) ='''+ convert(varchar,@WorkTypeId) +''' '      
+ end       
+ if @Status<>''      
+ begin      
+  set @SELECT = @SELECT + ' and isnull(t2.Status,'''') like ''%'+ convert(varchar,@Status) +'%'' '      
+ end       
+      
+ if @TimesheetStatusId<>'0'      
+ begin      
+  set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.TimesheetStatusId,''1'')) ='''+ convert(varchar,@TimesheetStatusId) +''' '      
+ end       
+ else      
+ begin      
+  if @ForEmployee = 0      
+  begin      
+   set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.TimesheetStatusId,''0'')) <>0 '    
+  ------set @SELECT = @SELECT + ' and convert(varchar, isnull(t1.TimesheetStatusId,''0'')) <>6 '      
+  end      
+ end      
+       
+ if @CreatedDate<>''      
+ begin        
+  set @SELECT = @SELECT + ' and convert(varchar(10), t1.CreatedDate,103)  like ''%'+ convert(varchar,@CreatedDate) +'%'' '      
+ end       
+       
+ if @SubmittedDate <>''      
+ begin        
+  set @SELECT = @SELECT + ' and convert(varchar(10), t1.SubmittedDate,103)  like ''%'+ convert(varchar,@SubmittedDate) +'%'' '      
+ end       
+       
+ --if @SubmittedDate <>''      
+ --begin        
+ -- set @SELECT = @SELECT + ' and convert(varchar(10), t1.SubmittedDate,103)  like ''%'+ convert(varchar,@SubmittedDate) +'%'' '      
+ --end       
+ if @EmployeeId <>''      
+ begin        
+  set @SELECT = @SELECT + ' and t1.EmployeeId = ' + convert(varchar,@EmployeeId) + ' '         
+ end      
+   
+       
