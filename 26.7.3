@@ -1,0 +1,44 @@
+if i am getting IDS as null then write linq query to get employee email and dont create any new method. 
+do it with linq from same stored procedure.
+
+
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (string.IsNullOrEmpty(IDS))
+        {
+            // If IDS is null or empty, use a default email ID
+            strResult = "Himmat.Panchal@qxglobalgroup.com";
+        }
+        else
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (strResult == string.Empty)
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
