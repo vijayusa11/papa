@@ -1,0 +1,109 @@
+To achieve the desired functionality where you print the employee's email if `IDS` is null, you can make a few adjustments to your method. Specifically, you need to handle the scenario where `IDS` is null and fetch the employee emails accordingly. Below is the revised version of your method and stored procedure:
+
+### Method
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (string.IsNullOrEmpty(IDS))
+        {
+            // If IDS is null or empty, fetch all employee emails
+            var emailList = oBLTimesheetProcess.GetAllEmployeeEmails();
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (strResult == string.Empty)
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+        else
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (strResult == string.Empty)
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+### BLTimesheetProcess
+
+Assuming you have a method `GetSelectedEmployeeEmail` to get emails based on `IDS`, you will need to add another method `GetAllEmployeeEmails` to get all employee emails when `IDS` is null.
+
+```csharp
+public class BLTimesheetProcess
+{
+    public List<EmployeeEmail> GetSelectedEmployeeEmail(string IDS)
+    {
+        // Your existing logic to get selected employee emails based on IDS
+    }
+
+    public List<EmployeeEmail> GetAllEmployeeEmails()
+    {
+        // Logic to get all employee emails
+    }
+}
+```
+
+### Stored Procedure
+
+Adjust the stored procedure to handle the case where `@IDS` is null by including all employees if `@IDS` is null.
+
+```sql
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetEmployeeEmail] 
+(
+    @IDS nvarchar(4000)
+)   
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @SQL NVARCHAR(4000)
+
+    SET @SQL = 'select '
+    SET @SQL = @SQL + ' (E.FirstName + '' '' + E.LastName) AS EmployeeName ,'    
+    SET @SQL = @SQL + ' ISNULL(E.EmailAddress,'''') Email '        
+    SET @SQL = @SQL + ' from employees E '
+
+    IF @IDS IS NOT NULL AND LEN(@IDS) > 0
+    BEGIN
+        SET @SQL = @SQL + ' WHERE E.employeeid in (SELECT employeeId from TMS_Timesheets where TimesheetId IN(' + @IDS + '))'
+    END
+
+    EXEC(@SQL)
+END
+```
+
+With these changes, the method will fetch all employee emails when `IDS` is null, and will proceed with the existing logic when `IDS` is provided.
