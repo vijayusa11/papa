@@ -1,0 +1,13 @@
+   @if (Common.IsCurrentUserAdmin() == true)
+   {
+       <select id="ddldis" name="ddldis" class="form-control pull-right" style="width: 150px !important">
+           <option value="0" selected="selected">All</option>
+           <option value="1">Discrepancies</option>
+           <option value="2">Non- Discrepancies</option>
+       </select>
+       <label class="pull-right" style="padding-left: 5px; padding-right: 5px;">
+           Type
+       </label>
+   }
+
+   want to reset dropdown when page in reload again
