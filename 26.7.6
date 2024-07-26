@@ -1,0 +1,9 @@
+To create a similar condition for the hidden input field, you can add the `onchange` event to it. Here’s how you can modify your line to include an `onchange` event handler:
+
+```csharp
+strreturn += " <td><input type=\"checkbox\" onchange=\"OnSelectEmployee(" + b.EmployeeId + ", this.checked)\" class=\"chkdownloaddoc\" id=\"" + b.EmployeeId + "\" /></td>" + Environment.NewLine;
+
+strreturn += "<input type=\"hidden\" value=\"" + oEnitity.EmployeeId + "\" id=\"hdnempId" + oEnitity.EmployeeId + "\" onchange=\"OnSelectEmployee(" + oEnitity.EmployeeId + ", this.checked)\" />";
+```
+
+In this example, the hidden input field now includes the `onchange` event handler. Note that I've also added the `oEnitity.EmployeeId` to the `id` of the hidden input to ensure that each hidden input has a unique ID. This allows you to differentiate between them if there are multiple hidden inputs on the page.
