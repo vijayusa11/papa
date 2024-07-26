@@ -1,0 +1,40 @@
+Understood, if you don't want to create another method and want to handle the case directly within the LINQ query when `IDS` is null, you can achieve this by checking `IDS` directly in the LINQ statement. Here’s how you can do it:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+        var validEmails = emailList
+            .Where(email => !string.IsNullOrEmpty(email.Email))
+            .Select(email => email.Email);
+
+        if (!validEmails.Any())
+        {
+            strResult = emailList.FirstOrDefault()?.Email;
+        }
+        else
+        {
+            strResult = string.Join(",", validEmails);
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+        if (ex.InnerException != null)
+        {
+            strResult += " | Inner Exception: " + ex.InnerException.Message;
+        }
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+In this code:
+- `GetSelectedEmployeeEmail` is assumed to return all emails if `IDS` is null or empty.
+- `validEmails` contains the filtered list of non-empty emails.
+- If `validEmails` is empty, it defaults to the first email from `emailList`. This covers the case where `IDS` is null or empty and you still want to use the email of the employee from the list.
+- If there are valid emails, it concatenates them into `strResult`.
