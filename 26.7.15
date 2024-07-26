@@ -1,0 +1,153 @@
+To ensure you exclude the matched data when `@IsStatFlag` is 1 and include it when `@IsStatFlag` is 2, we can further refine the query by specifically addressing how `R.totalhours` is handled. Here’s the revised version of the relevant portion of your procedure:
+
+```sql
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetListforSubmittedStatus]
+(
+    @OrderBy varchar(1000),
+    @StartRow int,
+    @EndRow int,
+    @EmployeeName nvarchar(100),
+    @TimesheetDate nvarchar(10),
+    @ProjectName nvarchar(100),
+    @PracticeName nvarchar(100),
+    @TotalHours nvarchar(10),
+    @TotalMins nvarchar(20),
+    @Rate nvarchar(5),
+    @TotalRate nvarchar(10),
+    @AdditionalHours nvarchar(5),
+    @RotaDate nvarchar(10),
+    @RotaPracticeName nvarchar(100),
+    @RotaShiftTime nvarchar(100),
+    @RotaAdditionalHours nvarchar(10),
+    @RotaTotalHours nvarchar(10),
+    @RotaTotalMins nvarchar(10),
+    @RateTypeId nvarchar(10),
+    @WorkTypeId nvarchar(10),
+    @Status nvarchar(50),
+    @FromDate nvarchar(10),
+    @ToDate nvarchar(10),
+    @TimesheetStatusId nvarchar(10),
+    @AuthoriserName nvarchar(100),
+    @AuthorisedDate nvarchar(20),
+    @CreatedDate nvarchar(20),
+    @SubmittedDate nvarchar(20),
+    @EmployeeId nvarchar(10),
+    @ViewerId int = 1,
+    @ForEmployee bit = 0,
+    @IsStatFlag INT,
+    @mystaff bit = 0,
+    @TotalCount int out
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @IsLineManager bit;
+    DECLARE @IsFinanceController bit;
+    DECLARE @IsAdmin bit;
+    DECLARE @SELECT varchar(8000);
+    DECLARE @ColList varchar(8000);
+    DECLARE @Where varchar(8000);
+    DECLARE @i int;
+    DECLARE @i2 int;
+    DECLARE @tmp varchar(8000);
+    DECLARE @dec varchar(8000);
+    DECLARE @f varchar(8000);
+    DECLARE @d varchar(8000);
+    DECLARE @Symbol char(2);
+    DECLARE @SQL varchar(8000);
+    DECLARE @Sort varchar(8000);
+    DECLARE @strLen int;
+    DECLARE @rolename nvarchar(500);
+
+    WITH ListDates(AllDates) AS
+    (
+        SELECT CONVERT(datetime, @FromDate, 103) AS DATE
+        UNION ALL
+        SELECT DATEADD(DAY, 1, AllDates)
+        FROM ListDates
+        WHERE AllDates < CONVERT(datetime, @ToDate, 103)
+    )
+
+    SELECT AllDates INTO #ListDate
+    FROM ListDates
+    OPTION (MAXRECURSION 1000)
+
+    SET @IsAdmin = 0;
+    SELECT @IsLineManager = ISNULL(IsLineManager, 0), @IsFinanceController = ISNULL(IsFinanceController, 0), @rolename = R.RoleName 
+    FROM Employees
+    LEFT JOIN Roles AS R ON R.RoleId = Employees.RoleId
+    WHERE EmployeeId = @ViewerId
+
+    IF (@IsFinanceController = 1 OR @rolename = 'Basic Admin')
+    BEGIN
+        SET @IsAdmin = 1
+    END
+
+    SET @SELECT = 'SELECT '
+    SET @SELECT = @SELECT + '  LD.AllDates,'
+    SET @SELECT = @SELECT + '  t1.TimesheetId,'
+    SET @SELECT = @SELECT + '  t1.EmployeeId,'
+    SET @SELECT = @SELECT + '  R.Rotaid,'
+    SET @SELECT = @SELECT + '  t1.TimesheetDate,'
+    SET @SELECT = @SELECT + '  t1.ProjectId,'
+    SET @SELECT = @SELECT + '  t1.TimesheetStatusId,'
+    SET @SELECT = @SELECT + '  CASE WHEN ISNULL(t1.IsAdditionalHours, 0) = 0 THEN ISNULL(t1.TotalHours, 0) ELSE 0 END TotalHours,'
+    SET @SELECT = @SELECT + '  R.TotalHours RotaTotalHours,'
+    SET @SELECT = @SELECT + '  CASE WHEN ISNULL(t1.IsAdditionalHours, 0) = 1 THEN ISNULL(t1.TotalHours, 0) ELSE 0 END AdditionalHours,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.TotalMins, 0) TotalMins,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.Rate, 0) Rate,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.TotalRate, 0) TotalRate,'
+    SET @SELECT = @SELECT + '  R.RotaDate,'
+    SET @SELECT = @SELECT + '  ISNULL(t5.PracticeName, '''') RotaPracticeName, '
+    SET @SELECT = @SELECT + '  R.ShiftTime RotaShiftTime,'
+    SET @SELECT = @SELECT + '  R.AdditionalHours RotaAdditionalHours,'
+    SET @SELECT = @SELECT + '  R.HoursType RotaHoursType,'
+    SET @SELECT = @SELECT + '  R.TotalMins RotaTotalMins,'
+    SET @SELECT = @SELECT + '  CASE WHEN t1.TimesheetId IS NOT NULL AND t1.TimesheetStatusId = 1 THEN 1 ELSE 0 END isTimesheetSubmitted,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.RateTypeId, 0) RateTypeId,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.WorkTypeId, 0) WorkTypeId,'
+    SET @SELECT = @SELECT + '  ISNULL(t1.PracticeId, 0) PracticeId,'
+    SET @SELECT = @SELECT + '  t1.AuthoriserName,'
+    SET @SELECT = @SELECT + '  t1.AuthorisedDate,'
+    SET @SELECT = @SELECT + '  t2.Status,'
+    SET @SELECT = @SELECT + '  t3.ProjectName, '
+    SET @SELECT = @SELECT + '  ISNULL(t4.PracticeName, '''') PracticeName, '
+    SET @SELECT = @SELECT + '  (t6.FirstName + '' '' + t6.LastName) AS EmployeeName, '
+    SET @SELECT = @SELECT + '  t1.Comment,'
+    SET @SELECT = @SELECT + ' WorkType = CASE t1.WorkTypeId WHEN 1 THEN ''Locums Contractor'' WHEN 2 THEN ''Inter Company'' ELSE ''Paye'' END,'
+    SET @SELECT = @SELECT + ' RateType = CASE t1.RateTypeId WHEN 1 THEN ''Per Day'' WHEN 2 THEN ''Per Hour'' ELSE '''' END,'
+    SET @SELECT = @SELECT + '  t1.CreatedDate AS CreatedDate, '
+    SET @SELECT = @SELECT + '  t1.SUBMITTEDDATE AS SubmittedDate '
+    SET @SELECT = @SELECT + '  FROM #ListDate LD'
+    SET @SELECT = @SELECT + '  LEFT JOIN TMS_Timesheets AS t1 on LD.AllDates = t1.TimesheetDate'
+    SET @SELECT = @SELECT + '  LEFT JOIN TMS_TimesheetStatuses AS t2 ON t1.TimesheetStatusId = t2.StatusId'
+    SET @SELECT = @SELECT + '  LEFT JOIN TMS_Projects AS t3 ON t1.ProjectId = t3.ProjectId'
+    SET @SELECT = @SELECT + '  LEFT JOIN RotaDetails AS r ON LD.AllDates = r.RotaDate'
+
+    IF @TimesheetStatusId = 1
+    BEGIN
+        IF @IsStatFlag = 1
+        BEGIN
+            SET @SELECT = @SELECT + ' AND (t1.totalhours != CAST(r.totalhours AS DECIMAL(18, 2)) OR r.totalhours = 0)'
+        END
+        ELSE IF @IsStatFlag = 2
+        BEGIN
+            SET @SELECT = @SELECT + ' AND t1.totalhours = CAST(r.totalhours AS DECIMAL(18, 2))'
+        END
+    END
+
+    -- Additional conditions
+    IF @RotaTotalHours <> ''
+    BEGIN
+        SET @SELECT = @SELECT + ' AND convert(varchar, ISNULL(CAST(r.TotalHours AS DECIMAL(18, 2)), ''0'')) LIKE ''%' + convert(varchar, @RotaTotalHours) + '%'' '
+    END
+
+    -- Add other conditions here based on your requirements
+
+    -- Finalize query and execute
+    SET @SQL = @SELECT
+    EXEC(@SQL)
+END
+```
+
+In this revision, we ensure the casting is correctly applied and the conditions are structured to filter out the matched data when `@IsStatFlag` is 1. This should provide you with the desired results. If you still encounter issues, you might want to verify the data in your tables to ensure the comparisons are accurate.
