@@ -1,0 +1,32 @@
+The issue appears to be related to the condition where `R.totalhours` is being checked for comparison. Since `R.totalhours` is a decimal type, it should be cast properly for comparison. We can address this by converting the `R.totalhours` to a decimal in the `CASE` statement and ensuring the comparison logic aligns with the decimal type.
+
+Here’s the revised section where the condition for `@IsStatFlag` is handled:
+
+```sql
+IF (@TimesheetStatusId = 1)  
+BEGIN  
+    IF (@IsStatFlag = 1)   
+    BEGIN   
+        PRINT @IsStatFlag
+        SET @SELECT = @SELECT + ' AND (t1.totalhours != CAST(r.totalhours AS DECIMAL(18, 2)) OR r.totalhours = 0)'   -- not match
+    END  
+    ELSE IF (@IsStatFlag = 2)
+    BEGIN   
+        SET @SELECT = @SELECT + ' AND t1.totalhours = CAST(r.totalhours AS DECIMAL(18, 2))'   -- match
+    END  
+END  
+```
+
+This modification ensures that `R.totalhours` is cast to `DECIMAL(18, 2)` before performing any comparisons.
+
+Also, ensure that any other `R.totalhours` references are correctly cast where necessary:
+
+```sql
+-- Adding conversion for other conditions involving RotaTotalHours
+IF @RotaTotalHours <> ''      
+BEGIN      
+  SET @SELECT = @SELECT + ' AND convert(varchar, ISNULL(CAST(r.TotalHours AS DECIMAL(18, 2)), ''0'')) LIKE ''%' + convert(varchar, @RotaTotalHours) + '%'' '      
+END
+```
+
+Apply similar casting for other decimal comparisons as required. This should help in resolving the issue of incorrect result sets due to type mismatch in comparisons.
