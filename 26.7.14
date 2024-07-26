@@ -1,0 +1,12 @@
+IF (@TimesheetStatusId = 1)  
+BEGIN  
+    IF (@IsStatFlag = 1)   
+    BEGIN   
+        PRINT @IsStatFlag
+        SET @SELECT = @SELECT + ' AND (t1.totalhours != CAST(r.totalhours AS DECIMAL(18, 2)) OR r.totalhours = 0)'   -- not match
+    END  
+    ELSE IF (@IsStatFlag = 2)
+    BEGIN   
+        SET @SELECT = @SELECT + ' AND t1.totalhours = CAST(r.totalhours AS DECIMAL(18, 2))'   -- match
+    END  
+END
