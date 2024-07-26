@@ -1,0 +1,115 @@
+To achieve the insertion of CSV file data into a SQL Server database table, with the specific requirement of modifying the data in column A until the first numeric value is encountered, you can follow these steps:
+
+1. **Read the CSV File:**
+   - Use a `StreamReader` to read the CSV file line by line.
+   - Use a CSV parsing library like `CsvHelper` for ease of parsing.
+
+2. **Modify Column A:**
+   - Iterate through the rows of the CSV data.
+   - For each row, if the value in column A is not numeric, modify it as needed until the first numeric value is encountered.
+
+3. **Create a DataTable:**
+   - Create a `DataTable` to hold the modified CSV data.
+
+4. **Bulk Insert into SQL Server:**
+   - Use `SqlBulkCopy` to efficiently insert the data from the `DataTable` into the SQL Server table.
+
+Here's an example in C#:
+
+### Step 1: Add Required NuGet Packages
+Add the following NuGet packages to your project:
+- `CsvHelper`
+- `System.Data.SqlClient`
+
+### Step 2: Code Example
+
+```csharp
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+using CsvHelper;
+using CsvHelper.Configuration;
+using System.Globalization;
+using System.Linq;
+
+class Program
+{
+    static void Main()
+    {
+        string csvFilePath = @"path\to\your\file.csv";
+        string connectionString = @"Your SQL Server connection string";
+        string tableName = "YourTableName";
+
+        DataTable dataTable = ReadAndModifyCsvToDataTable(csvFilePath);
+        BulkInsertToSqlServer(dataTable, connectionString, tableName);
+    }
+
+    static DataTable ReadAndModifyCsvToDataTable(string csvFilePath)
+    {
+        DataTable dataTable = new DataTable();
+
+        using (var reader = new StreamReader(csvFilePath))
+        using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)))
+        {
+            using (var dr = new CsvDataReader(csv))
+            {
+                dataTable.Load(dr);
+            }
+        }
+
+        foreach (DataRow row in dataTable.Rows)
+        {
+            string columnAValue = row[0].ToString();
+            if (!IsNumeric(columnAValue))
+            {
+                row[0] = ModifyValue(columnAValue); // Implement your modification logic here
+            }
+        }
+
+        return dataTable;
+    }
+
+    static bool IsNumeric(string value)
+    {
+        return value.All(char.IsDigit);
+    }
+
+    static string ModifyValue(string value)
+    {
+        // Implement your specific modification logic here
+        // For example, you might want to append a prefix or change the value entirely
+        return "Modified_" + value;
+    }
+
+    static void BulkInsertToSqlServer(DataTable dataTable, string connectionString, string tableName)
+    {
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+            using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+            {
+                bulkCopy.DestinationTableName = tableName;
+
+                try
+                {
+                    bulkCopy.WriteToServer(dataTable);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+    }
+}
+```
+
+### Explanation:
+
+1. **Reading CSV File:**
+   - The `ReadAndModifyCsvToDataTable` method reads the CSV file and loads it into a `DataTable` using `CsvHelper`.
+
+2. **Modifying Column A:**
+   - The method iterates through the rows and checks if the value in column A is numeric.
+   - If the value is not numeric, it modifies the value using the
