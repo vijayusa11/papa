@@ -30,3 +30,11 @@ END
 ```
 
 Apply similar casting for other decimal comparisons as required. This should help in resolving the issue of incorrect result sets due to type mismatch in comparisons.
+
+in @TimesheetStatusId = 1 getting all data but getting match data also which is in (@IsStatFlag = 2) so dont want that data and rest data is fine
+
+if @IsStatFlag=2   
+			begin   
+				set @SELECT = @SELECT + ' and t1.totalhours = r.totalhours'   -- match
+			end  
+		
