@@ -1,0 +1,7 @@
+Question	QuestionType	DisplayType	IsQuestionMandatory	IsRandomQuestion	Answer1	ISCorrect1	Answer2	ISCorrect2	Answer3	ISCorrect3	Answer4	ISCorrect4
+"All Accruals & Credit , accruals for 
+ Testing new case"	5	1	1	1	Only for current month	0	All Accruals & Credit , accruals for past 2 ,months	1	All Accruals and Credit accruals for past 2 months and Current month	0	No Reversal	0
+Testing	5	1	1	1	Only for current month	0	All Accruals & Credit accruals, for past 2 months	1	All Accruals and Credit accruals for past 2 months and Current month	0	No Reversal	0
+
+
+want to insert csv file data into sql server database table
