@@ -1,0 +1,46 @@
+getting error in this line -  using (System.Data.Common.DbDataAdapter adapter = dbFactory.CreateDataAdapter())
+error name - System.NotSupportedException: 'Specified method is not supported.'
+tried a lot of ways but not get any resolution yet please write full code for resolution in EF.
+
+Method -
+public static System.Data.DataSet DataTable(ObjectContext context, string sqlQuery, params System.Data.Common.DbParameter[] parameters)
+    {
+        System.Data.DataSet ds = new System.Data.DataSet();
+        System.Data.Common.DbConnection connection = context.Connection;
+        System.Data.Common.DbProviderFactory dbFactory = System.Data.Common.DbProviderFactories.GetFactory(connection);
+
+        using (var cmd = dbFactory.CreateCommand())
+        {
+            cmd.Connection = connection;
+            cmd.CommandType = System.Data.CommandType.Text;
+            cmd.CommandText = sqlQuery;
+
+            if (parameters != null)
+            {
+                foreach (var item in parameters)
+                {
+                    // Convert to EntityParameter
+                    EntityParameter entityParameter = new EntityParameter
+                    {
+                        ParameterName = item.ParameterName,
+                        Value = item.Value,
+                        DbType = item.DbType,
+                        Direction = item.Direction,
+                        IsNullable = item.IsNullable,
+                        Size = item.Size,
+                        Precision = (item is SqlParameter sqlParam) ? sqlParam.Precision : (byte)0,
+                        Scale = (item is SqlParameter sqlParams) ? sqlParams.Scale : (byte)0
+                    };
+
+                    cmd.Parameters.Add(entityParameter);
+                }
+            }
+            
+            using (System.Data.Common.DbDataAdapter adapter = dbFactory.CreateDataAdapter())
+            {
+                adapter.SelectCommand = cmd;
+                adapter.Fill(ds);
+            }
+        }
+        return ds;
+    }
