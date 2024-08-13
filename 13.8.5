@@ -1,0 +1,58 @@
+The error you're encountering occurs because the `cmd.Parameters.Add(item)` line is trying to add a `SqlParameter` (or some other `DbParameter` type) to an `EntityParameterCollection`, which only accepts `EntityParameter` objects.
+
+To fix this, you need to convert each `DbParameter` to an `EntityParameter` before adding it to the command’s parameter collection.
+
+Here's how you can modify your method to handle this:
+
+```csharp
+public static System.Data.DataSet DataTable(ObjectContext context, string sqlQuery, params System.Data.Common.DbParameter[] parameters)
+{
+    System.Data.DataSet ds = new System.Data.DataSet();
+    System.Data.Common.DbConnection connection = context.Connection;
+    System.Data.Common.DbProviderFactory dbFactory = System.Data.Common.DbProviderFactories.GetFactory(connection);
+
+    using (var cmd = dbFactory.CreateCommand())
+    {
+        cmd.Connection = connection;
+        cmd.CommandType = System.Data.CommandType.Text;
+        cmd.CommandText = sqlQuery;
+
+        if (parameters != null)
+        {
+            foreach (var item in parameters)
+            {
+                // Convert to EntityParameter
+                EntityParameter entityParameter = new EntityParameter
+                {
+                    ParameterName = item.ParameterName,
+                    Value = item.Value,
+                    DbType = item.DbType,
+                    Direction = item.Direction,
+                    IsNullable = item.IsNullable,
+                    Size = item.Size,
+                    Precision = (item is SqlParameter sqlParam) ? sqlParam.Precision : (byte)0,
+                    Scale = (item is SqlParameter sqlParam) ? sqlParam.Scale : (byte)0
+                };
+
+                cmd.Parameters.Add(entityParameter);
+            }
+        }
+
+        using (System.Data.Common.DbDataAdapter adapter = dbFactory.CreateDataAdapter())
+        {
+            adapter.SelectCommand = cmd;
+            adapter.Fill(ds);
+        }
+    }
+    return ds;
+}
+```
+
+### Explanation:
+- **EntityParameter Conversion:** The key change is converting each `DbParameter` into an `EntityParameter`. This involves copying the relevant properties from the `DbParameter` to a new `EntityParameter` instance.
+- **Precision and Scale Handling:** If the original `DbParameter` is a `SqlParameter`, the code also copies the `Precision` and `Scale` properties.
+
+### Why This Works:
+- `EntityParameter` is required by `EntityParameterCollection`, which is why the direct addition of `SqlParameter` or other `DbParameter` types fails. Converting to `EntityParameter` ensures the `cmd.Parameters.Add` operation succeeds without casting exceptions.
+
+With this change, your method should now work correctly without the `InvalidCastException`.
