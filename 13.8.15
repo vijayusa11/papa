@@ -1,0 +1,90 @@
+The issue you're facing arises because `System.Data.Common.DbProviderFactory` might not support creating a `DbDataAdapter` in certain cases, especially with Entity Framework and specific database providers. The common approach to resolve this issue is to use ADO.NET directly for executing SQL commands and handling data.
+
+Here’s how you can rewrite the method to use Entity Framework's `DbContext` for executing raw SQL queries and fetching results into a `DataSet`. This method will use `SqlCommand` and `SqlDataAdapter` instead of relying on `DbProviderFactory`.
+
+### Full Code Using ADO.NET with Entity Framework
+
+1. **DbContext Configuration**: Make sure `CPSIntranetEntities` extends `DbContext` and is properly configured.
+
+2. **Method Implementation**: Update the `DataTable` method to use `SqlCommand` and `SqlDataAdapter`.
+
+```csharp
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Data.Entity;
+
+public class CPSIntranetEntities : DbContext
+{
+    // Constructor to specify the connection string
+    public CPSIntranetEntities() : base("name=YourConnectionStringName") { }
+
+    // Method to call the stored procedure and get the data
+    public DataSet ExportDynamicReport(string EmployeeCode, string EmployeeName, string Designation, string Department, string Email, string Username, string employeeGroupName, string Status, string ComplianceStatus, string isDelete, string SelectedEmployeesIds, string orderby, string ordertype, string BankName, string BankAddress, string BankAccountName, string BankAccountNo, string BankAccShortCode, string SelectedFields)
+    {
+        DataSet ds = new DataSet();
+        
+        // Define the stored procedure name
+        string storedProcedure = "spGetEmployeeListWithBankExport";
+
+        // Create parameters for the stored procedure
+        var parameters = new[]
+        {
+            new SqlParameter("@OrderBy", SqlDbType.NVarChar) { Value = orderby },
+            new SqlParameter("@EmployeeCode", SqlDbType.NVarChar) { Value = EmployeeCode },
+            new SqlParameter("@EmployeeName", SqlDbType.NVarChar) { Value = EmployeeName },
+            new SqlParameter("@Designation", SqlDbType.NVarChar) { Value = Designation },
+            new SqlParameter("@DepartmentName", SqlDbType.NVarChar) { Value = Department },
+            new SqlParameter("@EmailAddress", SqlDbType.NVarChar) { Value = Email },
+            new SqlParameter("@Username", SqlDbType.NVarChar) { Value = Username },
+            new SqlParameter("@EmployeeGroupName", SqlDbType.NVarChar) { Value = employeeGroupName },
+            new SqlParameter("@Status", SqlDbType.NVarChar) { Value = Status },
+            new SqlParameter("@ComplianceStatus", SqlDbType.NVarChar) { Value = ComplianceStatus },
+            new SqlParameter("@IsDelete", SqlDbType.NVarChar) { Value = isDelete },
+            new SqlParameter("@employeeIds", SqlDbType.NVarChar) { Value = SelectedEmployeesIds },
+            new SqlParameter("@ViewerId", SqlDbType.NVarChar) { Value = GetCurrentUserId() },
+            new SqlParameter("@ColumnNames", SqlDbType.NVarChar) { Value = SelectedFields },
+            new SqlParameter("@TotalCount", SqlDbType.Int) { Value = DBNull.Value }
+        };
+
+        // Execute the stored procedure and fill the DataSet
+        using (var connection = this.Database.Connection)
+        {
+            connection.Open();
+            using (var command = new SqlCommand(storedProcedure, (SqlConnection)connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+
+                // Add parameters to the command
+                command.Parameters.AddRange(parameters);
+
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(ds);
+                }
+            }
+        }
+
+        return ds;
+    }
+
+    // Method to get the current user ID (implement according to your application logic)
+    private string GetCurrentUserId()
+    {
+        // Replace this with your logic to get the current user ID
+        return "someUserId";
+    }
+}
+```
+
+### Key Points:
+
+1. **Direct ADO.NET Usage**: `SqlCommand` and `SqlDataAdapter` are used directly to interact with the database and fill the `DataSet`. This avoids issues with unsupported `DbProviderFactory` methods.
+
+2. **Entity Framework Integration**: The `DbContext` is used to manage the connection, and the connection is explicitly opened before executing commands.
+
+3. **Stored Procedure Execution**: The stored procedure is called with parameters, and results are fetched into a `DataSet`.
+
+4. **Connection Handling**: Ensure that the connection is properly opened and closed to avoid any issues with database connectivity.
+
+This method ensures compatibility and resolves the issue with `DbProviderFactory.CreateDataAdapter` not supporting certain operations.
