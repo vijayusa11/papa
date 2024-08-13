@@ -1,0 +1,284 @@
+I have a SP and a Method. now i want to create a new method as sample method from below mentioned SP -
+create a new method for me so i can pass input values and whereCondition in method.
+.net framework 4.7 with C#
+
+Sample method -
+ public DataSet ExportDynamicReport(int? dynamicReportId, string whereCondition)
+ {
+     DataSet ds = new DataSet();
+     using (CPSIntranetEntities CPSIntranetEntities = new CPSIntranetEntities())
+     {
+         //supplierPortalEntities.GetdynamicReportById(dynamicReportId, whereCondition);
+
+         ds = Common.Common.DataTable(CPSIntranetEntities, "EXEC spGetEmployeeListWithBankExport @DynamicReportId =@paramName1,  @WhereCondition = @paramName2", 
+             new SqlParameter("paramName1", SqlDbType.Int) { Value = dynamicReportId }, 
+             new SqlParameter("paramName2", SqlDbType.NVarChar) { Value = whereCondition });
+     }
+     return ds;
+ }
+
+SP -
+exec [dbo].[spGetEmployeeListWithBankExport] '','','','','','','','','','',null,'1,12','1','EmployeeCode,ContractorCode',null
+
+
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+	@OrderBy varchar(1000), 	
+	@EmployeeCode nvarchar(20),	
+	@EmployeeName nvarchar(100),
+	@Designation nvarchar(100),
+	@DepartmentName nvarchar(100),
+	@EmailAddress varchar(100),
+	@Username nvarchar(50),	
+	@EmployeeGroupName nvarchar(100),	
+	@Status nvarchar(20),
+	@ComplianceStatus nvarchar(20),
+	@IsDelete nvarchar(1),
+	@employeeIds nvarchar(50), -- Vijay 13
+	@ViewerId int,	
+	@ColumnNames nvarchar(1000),
+	@TotalCount int out	
+)
+AS     
+BEGIN
+	SET NOCOUNT ON;
+
+	declare @IsLineManager bit;
+	declare @DepartmentId int;
+	declare @IsAdmin bit;
+	declare @Select varchar(8000);
+	declare @ColList varchar(8000);
+	declare @Where varchar(8000);
+	declare @i int; 
+	declare @i2 int;
+	declare @tmp varchar(8000);
+	declare @dec varchar(8000);
+	declare @f varchar(8000);
+	declare @d varchar(8000);
+	declare @Symbol char(2);
+	declare @SQL varchar(8000);
+	declare @Sort varchar(8000);
+	declare @strLen int;
+		
+	DECLARE @SQLString NVARCHAR(4000)
+	DECLARE @ParmDefinition NVARCHAR(4000)
+	DECLARE @IntVariable INT
+	DECLARE @Lastlname varchar(1000)
+	DECLARE @PrefixedColumnNames VARCHAR(8000);
+
+
+	SELECT 
+		@IsAdmin = CASE WHEN R.RoleName='Admin' THEN 1 ELSE 0 END 
+	FROM Employees AS E 
+		LEFT JOIN Roles AS R ON R.RoleId = E.RoleId 
+	WHERE E.EmployeeId= @ViewerId
+
+	SELECT @IsLineManager=ISNULL(IsLineManager,0) FROM Employees WHERE EmployeeId = @ViewerId
+
+	;WITH CTE AS (SELECT EmployeeId,SUM(CAST(Split.c.value('.', 'VARCHAR(100)') AS INT)) AS TotalScore FROM(
+	SELECT EmployeeId,CAST ('<M>' + REPLACE(Score, ',', '</M><M>') + '</M>' AS XML) AS Score FROM(
+	SELECT FilledId,EmployeeId,QuestionId,Type,REPLACE(Score,',-5','') AS Score,FilledBy,CreatedDate FROM
+	(select FilledId,EmployeeId,QuestionId,REPLACE(Type,'|',',') AS Type, REPLACE(Score,'|',',') AS Score,FilledBy,CreatedDate from PDRFilledDetail) A)B
+	)AS C CROSS APPLY Score.nodes ('/M') AS Split(C)
+	GROUP BY EmployeeId)
+
+	SELECT EmployeeId,TotalScore INTO #tempEmpTotalPDRScore FROM CTE
+
+	--SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+
+	    -- Add table prefix E. to each column name
+    IF @ColumnNames IS NOT NULL AND LEN(@ColumnNames) > 0
+    BEGIN
+        SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+    END
+    ELSE
+    BEGIN
+        -- Handle the case where @ColumnNames is empty or invalid
+        SET @PrefixedColumnNames = 'E.EmployeeCode'; -- Default column
+    END
+
+	SET @Select = 'SELECT DISTINCT ' + @PrefixedColumnNames + ' FROM Employees AS E'
+	set @Select = @Select + ' 	LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+	set @Select = @Select + ' 	LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId 
+								LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId
+								LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId 
+								LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId 	
+								LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId'
+	
+
+	if @IsDelete<>''
+	begin
+		if @IsDelete='0'
+		begin
+			set @Select = @Select + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'		
+		end
+		else
+		begin
+			set @Select = @Select + ' 	WHERE E.IsDelete = 1 OR E.STATUSID = 2'
+		end
+	end
+	else
+	begin
+		set @Select = @Select + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'		
+	end
+	
+	if @IsAdmin <> 1
+	begin
+		if @IsLineManager = 1
+		begin
+			set @SELECT = @SELECT + ' and E.LineManagerId='+ convert(varchar,@ViewerId) + ''
+		end
+	end
+	
+	-- Vijay 13
+	if @employeeIds <>''
+	begin
+		set @SELECT = @SELECT + ' 	and E.EmployeeId in  (SELECT splitdata FROM fnSplitString(''' + convert(varchar,@employeeIds) + ''',''COMMA'')) '
+	end 	
+	
+	if @EmployeeCode<>''
+	begin
+		set @Select = @Select + ' and E.EmployeeCode like ''%'+ convert(varchar,@EmployeeCode) +'%'' '
+	end 	
+	if @EmployeeName<>''
+	begin
+		set @Select = @Select + ' and (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) like ''%'+ convert(varchar,@EmployeeName) +'%'')'
+	end
+	
+	if @Designation<>''
+	begin
+		set @Select = @Select + ' and E.Designation like ''%'+ convert(varchar,@Designation) +'%'' '
+	end
+	if @DepartmentName<>''
+	begin
+		set @Select = @Select + ' and E.DepartmentName like ''%'+ convert(varchar,@DepartmentName) +'%'' '
+	end
+	if @EmailAddress<>''
+	begin
+		set @Select = @Select + ' and E.EmailAddress like ''%'+ convert(varchar,@EmailAddress) +'%'' '
+	end
+	if @Username<>''
+	begin			
+		set @Select = @Select + ' and E.Username like ''%'+ convert(varchar,@Username) +'%'' '
+	end
+	if @EmployeeGroupName <> ''
+	begin
+		set @Select = @Select + ' and EG.GroupName like ''%' + convert(varchar,@EmployeeGroupName) + '%'' '
+	end
+	if @Status<>''
+	begin			
+		set @Select = @Select + ' and E.StatusName like ''%'+ convert(varchar,@Status) +'%'' '
+	end
+	if @ComplianceStatus <>''
+	begin			
+		set @Select = @Select + ' and (case when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 1 then '
+			set @Select = @Select + ' ''Compliant''  '
+			set @Select = @Select + '      when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 2 then '
+			set @Select = @Select + ' ''Non-Compliant''  '
+			set @Select = @Select + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 3 then  '
+			set @Select = @Select + ' ''About to Expire'' '
+			set @Select = @Select + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 4 then '
+			set @Select = @Select + ' ''CFMM'' '
+			set @Select = @Select + ' end) 	like ''%'+ convert(varchar,@ComplianceStatus) +'%''	'
+	end
+	 
+	--print @Select
+	--SET @Select = @Select + ') A ' 
+
+	set @SQLString = N'select  @LastlnameOUT = count(E.EmployeeId) '	
+	set @SQLString = @SQLString + ' 	FROM Employees AS E	'
+	set @SQLString = @SQLString + ' 	LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+	set @SQLString = @SQLString + ' 	LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId '
+
+	if @IsDelete<>''
+	begin
+		if @IsDelete='0'
+		begin
+			set @SQLString = @SQLString + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'
+		end
+		else
+		begin
+			set @SQLString = @SQLString + ' 	WHERE E.IsDelete = 1 OR E.STATUSID = 2'
+		end
+	end
+	else
+	begin
+		set @SQLString = @SQLString + ' 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2'
+	end
+
+	if @IsAdmin <> 1
+	begin
+		if @IsLineManager = 1
+		begin
+			set @SQLString = @SQLString + ' and E.LineManagerId='+ convert(varchar,@ViewerId) + ''
+		end
+	end
+
+	-- Vijay 13
+	if @employeeIds <>''
+	begin
+		set @SQLString = @SQLString + ' 	and E.EmployeeId in  (SELECT splitdata FROM fnSplitString(''' + convert(varchar,@employeeIds) + ''',''COMMA'')) '
+	end 	
+
+	if @EmployeeCode<>''
+	begin
+		set @SQLString = @SQLString + ' and E.EmployeeCode like ''%'+ convert(varchar,@EmployeeCode) +'%'' '
+	end 	
+	if @EmployeeName<>''
+	begin
+		set @SQLString = @SQLString + ' and (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) like ''%'+ convert(varchar,@EmployeeName) +'%'')'
+	end
+	
+	if @Designation<>''
+	begin
+		set @SQLString = @SQLString + ' and E.Designation like ''%'+ convert(varchar,@Designation) +'%'' '
+	end
+	if @DepartmentName<>''
+	begin
+		set @SQLString = @SQLString + ' and E.DepartmentName like ''%'+ convert(varchar,@DepartmentName) +'%'' '
+	end
+	if @EmailAddress<>''
+	begin
+		set @SQLString = @SQLString + ' and E.EmailAddress like ''%'+ convert(varchar,@EmailAddress) +'%'' '
+	end
+	if @Username<>''
+	begin			
+		set @SQLString = @SQLString + ' and E.Username like ''%'+ convert(varchar,@Username) +'%'' '
+	end
+	if @EmployeeGroupName <> ''
+	begin
+		set @SQLString = @SQLString + ' and EG.GroupName like ''%' + convert(varchar,@EmployeeGroupName) + '%'' '
+	end
+	if @Status<>''
+	begin			
+		set @SQLString = @SQLString + ' and E.StatusName like ''%'+ convert(varchar,@Status) +'%'' '
+	end
+	if @ComplianceStatus <>''
+	begin			
+		set @SQLString = @SQLString + ' and (case when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 1 then '
+			set @SQLString = @SQLString + ' ''Compliant''  '
+			set @SQLString = @SQLString + '      when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 2 then '
+			set @SQLString = @SQLString + ' ''Non-Compliant''  '
+			set @SQLString = @SQLString + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 3 then  '
+			set @SQLString = @SQLString + ' ''About to Expire'' '
+			set @SQLString = @SQLString + ' 	 when dbo.fncGetEmployeeComplianceStatus(E.EmployeeId,'''') = 4 then '
+			set @SQLString = @SQLString + ' ''CFMM'' '
+			set @SQLString = @SQLString + ' end) 	like ''%'+ convert(varchar,@ComplianceStatus) +'%''	'
+	end
+
+
+	SET @ParmDefinition = N'@level int,@LastlnameOUT varchar(30) OUTPUT'
+	SET @IntVariable = 35
+	
+	EXECUTE sp_executesql
+	@SQLString,
+	@ParmDefinition,
+	@level = @IntVariable,
+	@LastlnameOUT=@Lastlname OUTPUT
+	set @TotalCount=@Lastlname
+
+	exec(@Select) 
+	PRINT @Select
+	DROP TABLE #tempEmpTotalPDRScore
+END
+ 
