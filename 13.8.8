@@ -1,0 +1,70 @@
+Here's the full code using Entity Framework (EF) with the corrections included:
+
+### Method to Execute a Stored Procedure with Dynamic SQL Query
+```csharp
+using System;
+using System.Data;
+using System.Data.Common;
+using System.Data.Entity.Core.Objects;
+using System.Data.SqlClient;
+
+public class DynamicReportService
+{
+    public static DataSet ExecuteDynamicReport(ObjectContext context, string sqlQuery, params SqlParameter[] parameters)
+    {
+        DataSet ds = new DataSet();
+        DbConnection connection = context.Connection;
+        DbProviderFactory dbFactory = DbProviderFactories.GetFactory(connection);
+
+        using (var cmd = dbFactory.CreateCommand())
+        {
+            cmd.Connection = connection;
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = sqlQuery;
+
+            if (parameters != null)
+            {
+                foreach (var item in parameters)
+                {
+                    cmd.Parameters.Add(item);
+                }
+            }
+
+            using (var adapter = new SqlDataAdapter())
+            {
+                adapter.SelectCommand = cmd as SqlCommand;
+                adapter.Fill(ds);
+            }
+        }
+
+        return ds;
+    }
+}
+```
+
+### Usage Example
+```csharp
+public DataSet ExportDynamicReport(int? dynamicReportId, string whereCondition)
+{
+    using (CPSIntranetEntities context = new CPSIntranetEntities())
+    {
+        string sqlQuery = "EXEC spGetEmployeeListWithBankExport @DynamicReportId, @WhereCondition";
+
+        SqlParameter[] parameters = new SqlParameter[]
+        {
+            new SqlParameter("@DynamicReportId", SqlDbType.Int) { Value = dynamicReportId ?? (object)DBNull.Value },
+            new SqlParameter("@WhereCondition", SqlDbType.NVarChar) { Value = whereCondition ?? (object)DBNull.Value }
+        };
+
+        return DynamicReportService.ExecuteDynamicReport(context, sqlQuery, parameters);
+    }
+}
+```
+
+### Key Points:
+1. **SQL Command Creation:** The method `ExecuteDynamicReport` creates a `DbCommand` using the provided connection and sets the command text to the passed SQL query.
+2. **Parameter Handling:** Parameters are added to the command using `SqlParameter` objects. The `SqlParameter` class is compatible with Entity Framework when working with SQL Server.
+3. **DataAdapter:** A `SqlDataAdapter` is used to execute the command and fill the `DataSet` with the results.
+4. **CommandType:** The command type is set to `CommandType.Text` since we are executing a raw SQL query.
+
+This setup should work without issues, and it adheres to best practices for executing raw SQL queries within Entity Framework, particularly when working with stored procedures that require dynamic parameters.
