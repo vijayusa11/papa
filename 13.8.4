@@ -1,0 +1,32 @@
+below method getting in this line - cmd.Parameters.Add(item);
+
+public static System.Data.DataSet DataTable(ObjectContext context, string sqlQuery, params System.Data.Common.DbParameter[] parameters)
+{
+    System.Data.DataSet ds = new System.Data.DataSet();
+    System.Data.Common.DbConnection connection = context.Connection;
+    System.Data.Common.DbProviderFactory dbFactory = System.Data.Common.DbProviderFactories.GetFactory(connection);
+    using (var cmd = dbFactory.CreateCommand())
+    {
+        cmd.Connection = connection;
+        cmd.CommandType = System.Data.CommandType.Text;
+        cmd.CommandText = sqlQuery;
+        if (parameters != null)
+        {
+            foreach (var item in parameters)
+            {
+                cmd.Parameters.Add(item);
+            }
+        }
+        using (System.Data.Common.DbDataAdapter adapter = dbFactory.CreateDataAdapter())
+        {
+            adapter.SelectCommand = cmd;
+            adapter.Fill(ds);
+        }
+    }
+    return ds;
+}
+        
+
+getting this error - 
+System.InvalidCastException: 'The EntityParameterCollection only accepts non-null EntityParameter type objects, not objects of type 
+
