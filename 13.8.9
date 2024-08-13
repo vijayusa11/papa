@@ -1,0 +1,72 @@
+existing code -
+
+public DataSet ExportDynamicReport(string EmployeeCode, string EmployeeName, string Designation, string Department, string Email, string Username, string employeeGroupName, string Status, string ComplianceStatus, string isDelete, string SelectedEmployeesIds, string orderby, string ordertype, string BankName, string BankAddress, string BankAccountName, string BankAccountNo, string BankAccShortCode, string SelectedFields)
+{
+    DataSet ds = new DataSet();
+    using (CPSIntranetEntities cPSIntranetEntities = new CPSIntranetEntities())
+    {
+        //supplierPortalEntities.GetdynamicReportById(dynamicReportId, whereCondition);
+
+ 
+    ds = Common.Common.DataTable(cPSIntranetEntities, "EXEC spGetEmployeeListWithBankExport @OrderBy = @paramName1, @EmployeeCode = @paramName2, @EmployeeName = @paramName3, @Designation = @paramName4, @DepartmentName = @paramName5, @EmailAddress = @paramName6, @Username = @paramName7, @EmployeeGroupName = @paramName8, @Status = @paramName9, @ComplianceStatus = @paramName10, @IsDelete = @paramName11, @employeeIds = @paramName12, @ViewerId = @paramName13, @ColumnNames = @paramName14, @TotalCount = @paramName15", 
+                new SqlParameter("paramName1", SqlDbType.NVarChar) { Value = orderby },
+                new SqlParameter("paramName2", SqlDbType.NVarChar) { Value = EmployeeCode },
+                new SqlParameter("paramName3", SqlDbType.NVarChar) { Value = EmployeeName },
+                new SqlParameter("paramName4", SqlDbType.NVarChar) { Value = Designation },
+                new SqlParameter("paramName5", SqlDbType.NVarChar) { Value = Department },
+                new SqlParameter("paramName6", SqlDbType.NVarChar) { Value = Email },
+                new SqlParameter("paramName7", SqlDbType.NVarChar) { Value = Username },
+                new SqlParameter("paramName8", SqlDbType.NVarChar) { Value = employeeGroupName },
+                new SqlParameter("paramName9", SqlDbType.NVarChar) { Value = Status },
+                new SqlParameter("paramName10", SqlDbType.NVarChar) { Value = ComplianceStatus },
+                new SqlParameter("paramName11", SqlDbType.NVarChar) { Value = isDelete },
+                new SqlParameter("paramName12", SqlDbType.NVarChar) { Value = SelectedEmployeesIds },
+                new SqlParameter("paramName13", SqlDbType.NVarChar) { Value = Common.Common.GetCurrentUserId() },
+                new SqlParameter("paramName14", SqlDbType.NVarChar) { Value = SelectedFields },
+                new SqlParameter("paramName15", SqlDbType.NVarChar) { Value = null }                        
+            );
+    }
+    return ds;
+}
+
+ public static System.Data.DataSet DataTable(ObjectContext context, string sqlQuery, params System.Data.Common.DbParameter[] parameters)
+ {
+     System.Data.DataSet ds = new System.Data.DataSet();
+     System.Data.Common.DbConnection connection = context.Connection;
+     System.Data.Common.DbProviderFactory dbFactory = System.Data.Common.DbProviderFactories.GetFactory(connection);
+
+     using (var cmd = dbFactory.CreateCommand())
+     {
+         cmd.Connection = connection;
+         cmd.CommandType = System.Data.CommandType.Text;
+         cmd.CommandText = sqlQuery;
+
+         if (parameters != null)
+         {
+             foreach (var item in parameters)
+             {
+                 // Convert to EntityParameter
+                 EntityParameter entityParameter = new EntityParameter
+                 {
+                     ParameterName = item.ParameterName,
+                     Value = item.Value,
+                     DbType = item.DbType,
+                     Direction = item.Direction,
+                     IsNullable = item.IsNullable,
+                     Size = item.Size,
+                     Precision = (item is SqlParameter sqlParam) ? sqlParam.Precision : (byte)0,
+                     Scale = (item is SqlParameter sqlParams) ? sqlParams.Scale : (byte)0
+                 };
+
+                 cmd.Parameters.Add(entityParameter);
+             }
+         }
+         
+         using (System.Data.Common.DbDataAdapter adapter = dbFactory.CreateDataAdapter())
+         {
+             
+         }
+     }
+     return ds;
+ }
+    
