@@ -1,0 +1,95 @@
+If you prefer to use Entity Framework's `ExecuteStoreCommand` (or `ExecuteSqlCommand` in later versions) for executing a stored procedure, and need to retrieve results in a `DataSet`, you'll need to use a combination of `DbContext` for executing the command and ADO.NET for filling the `DataSet`. Here's how you can do it:
+
+### Updated Code Using `ExecuteStoreCommand`
+
+```csharp
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Data.Entity;
+
+public class CPSIntranetEntities : DbContext
+{
+    public CPSIntranetEntities() : base("name=YourConnectionStringName") { }
+
+    public DataSet ExportDynamicReport(string EmployeeCode, string EmployeeName, string Designation, string Department, string Email, string Username, string employeeGroupName, string Status, string ComplianceStatus, string isDelete, string SelectedEmployeesIds, string orderby, string ordertype, string BankName, string BankAddress, string BankAccountName, string BankAccountNo, string BankAccShortCode, string SelectedFields)
+    {
+        DataSet ds = new DataSet();
+
+        // Build the SQL query for the stored procedure
+        string sqlQuery = "EXEC spGetEmployeeListWithBankExport @OrderBy, @EmployeeCode, @EmployeeName, @Designation, @DepartmentName, @EmailAddress, @Username, @EmployeeGroupName, @Status, @ComplianceStatus, @IsDelete, @employeeIds, @ViewerId, @ColumnNames, @TotalCount";
+
+        // Create parameters for the stored procedure
+        var parameters = new[]
+        {
+            new SqlParameter("@OrderBy", SqlDbType.NVarChar) { Value = (object)orderby ?? DBNull.Value },
+            new SqlParameter("@EmployeeCode", SqlDbType.NVarChar) { Value = (object)EmployeeCode ?? DBNull.Value },
+            new SqlParameter("@EmployeeName", SqlDbType.NVarChar) { Value = (object)EmployeeName ?? DBNull.Value },
+            new SqlParameter("@Designation", SqlDbType.NVarChar) { Value = (object)Designation ?? DBNull.Value },
+            new SqlParameter("@DepartmentName", SqlDbType.NVarChar) { Value = (object)Department ?? DBNull.Value },
+            new SqlParameter("@EmailAddress", SqlDbType.NVarChar) { Value = (object)Email ?? DBNull.Value },
+            new SqlParameter("@Username", SqlDbType.NVarChar) { Value = (object)Username ?? DBNull.Value },
+            new SqlParameter("@EmployeeGroupName", SqlDbType.NVarChar) { Value = (object)employeeGroupName ?? DBNull.Value },
+            new SqlParameter("@Status", SqlDbType.NVarChar) { Value = (object)Status ?? DBNull.Value },
+            new SqlParameter("@ComplianceStatus", SqlDbType.NVarChar) { Value = (object)ComplianceStatus ?? DBNull.Value },
+            new SqlParameter("@IsDelete", SqlDbType.NVarChar) { Value = (object)isDelete ?? DBNull.Value },
+            new SqlParameter("@employeeIds", SqlDbType.NVarChar) { Value = (object)SelectedEmployeesIds ?? DBNull.Value },
+            new SqlParameter("@ViewerId", SqlDbType.NVarChar) { Value = (object)GetCurrentUserId() ?? DBNull.Value },
+            new SqlParameter("@ColumnNames", SqlDbType.NVarChar) { Value = (object)SelectedFields ?? DBNull.Value },
+            new SqlParameter("@TotalCount", SqlDbType.Int) { Value = DBNull.Value }
+        };
+
+        // Open the connection and execute the command
+        using (var connection = (SqlConnection)this.Database.Connection)
+        {
+            if (connection.State != ConnectionState.Open)
+            {
+                connection.Open();
+            }
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = sqlQuery;
+                command.CommandType = CommandType.Text;
+
+                // Add parameters to the command
+                command.Parameters.AddRange(parameters);
+
+                // Use SqlDataAdapter to fill the DataSet
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(ds);
+                }
+            }
+        }
+
+        return ds;
+    }
+
+    private string GetCurrentUserId()
+    {
+        // Replace this with your logic to get the current user ID
+        return "someUserId";
+    }
+}
+```
+
+### Explanation:
+
+1. **SQL Query Construction**: The `sqlQuery` variable holds the stored procedure call. Note that parameter names are matched with their corresponding placeholders in the query.
+
+2. **SqlCommand and SqlDataAdapter**: We create a `SqlCommand` object and use `SqlDataAdapter` to execute the command and fill the `DataSet`.
+
+3. **Connection Management**: The `SqlConnection` object (`connection`) is obtained from the `DbContext`, and it ensures the connection is opened if it's not already.
+
+4. **ExecuteStoreCommand Alternative**: While this method doesn't directly use `ExecuteStoreCommand`, it achieves the same goal by constructing the SQL query and executing it with the necessary parameters.
+
+5. **Null Handling**: The code checks for null parameters and substitutes `DBNull.Value` where necessary.
+
+### Key Considerations:
+
+- **Stored Procedure Execution**: The `sqlQuery` directly represents the stored procedure execution.
+- **Parameter Handling**: Each parameter is passed safely with the appropriate type, handling nulls where necessary.
+- **Entity Framework Integration**: The method integrates seamlessly with EF by using the existing `DbContext` connection.
+
+This code should resolve your issues with unsupported methods and allow you to use Entity Framework while filling a `DataSet` with the results from a stored procedure.
