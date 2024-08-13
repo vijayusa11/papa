@@ -1,0 +1,94 @@
+To rewrite the `ExportDynamicReport` method using Entity Framework (EF) with a stored procedure, you would utilize `DbContext` and `DbSet`. Entity Framework can execute raw SQL queries or stored procedures and map results to `DataSet`. Here's how you can do it with EF:
+
+### Full Code with Entity Framework
+
+```csharp
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Data.Entity;
+
+public class CPSIntranetEntities : DbContext
+{
+    // Your existing DbSets and configurations
+
+    // Constructor to specify the connection string
+    public CPSIntranetEntities() : base("name=YourConnectionStringName") { }
+
+    // Method to call the stored procedure and get the data
+    public DataSet ExportDynamicReport(string EmployeeCode, string EmployeeName, string Designation, string Department, string Email, string Username, string employeeGroupName, string Status, string ComplianceStatus, string isDelete, string SelectedEmployeesIds, string orderby, string ordertype, string BankName, string BankAddress, string BankAccountName, string BankAccountNo, string BankAccShortCode, string SelectedFields)
+    {
+        DataSet ds = new DataSet();
+
+        // Define the stored procedure name
+        string storedProcedure = "spGetEmployeeListWithBankExport";
+
+        // Create parameters for the stored procedure
+        var parameters = new[]
+        {
+            new SqlParameter("@OrderBy", SqlDbType.NVarChar) { Value = orderby },
+            new SqlParameter("@EmployeeCode", SqlDbType.NVarChar) { Value = EmployeeCode },
+            new SqlParameter("@EmployeeName", SqlDbType.NVarChar) { Value = EmployeeName },
+            new SqlParameter("@Designation", SqlDbType.NVarChar) { Value = Designation },
+            new SqlParameter("@DepartmentName", SqlDbType.NVarChar) { Value = Department },
+            new SqlParameter("@EmailAddress", SqlDbType.NVarChar) { Value = Email },
+            new SqlParameter("@Username", SqlDbType.NVarChar) { Value = Username },
+            new SqlParameter("@EmployeeGroupName", SqlDbType.NVarChar) { Value = employeeGroupName },
+            new SqlParameter("@Status", SqlDbType.NVarChar) { Value = Status },
+            new SqlParameter("@ComplianceStatus", SqlDbType.NVarChar) { Value = ComplianceStatus },
+            new SqlParameter("@IsDelete", SqlDbType.NVarChar) { Value = isDelete },
+            new SqlParameter("@employeeIds", SqlDbType.NVarChar) { Value = SelectedEmployeesIds },
+            new SqlParameter("@ViewerId", SqlDbType.NVarChar) { Value = GetCurrentUserId() },
+            new SqlParameter("@ColumnNames", SqlDbType.NVarChar) { Value = SelectedFields },
+            new SqlParameter("@TotalCount", SqlDbType.Int) { Value = DBNull.Value }
+        };
+
+        // Execute the stored procedure and fill the DataSet
+        using (var connection = this.Database.Connection)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = storedProcedure;
+                command.CommandType = CommandType.StoredProcedure;
+
+                // Add parameters to the command
+                command.Parameters.AddRange(parameters);
+
+                using (var adapter = new SqlDataAdapter((SqlCommand)command))
+                {
+                    adapter.Fill(ds);
+                }
+            }
+        }
+
+        return ds;
+    }
+
+    // Method to get the current user ID (implement according to your application logic)
+    private string GetCurrentUserId()
+    {
+        // Replace this with your logic to get the current user ID
+        return "someUserId";
+    }
+}
+```
+
+### Explanation:
+
+1. **DbContext**: `CPSIntranetEntities` inherits from `DbContext`, and it's initialized with a connection string.
+   
+2. **ExportDynamicReport Method**:
+   - **DataSet**: A `DataSet` is created to hold the results.
+   - **Stored Procedure**: `spGetEmployeeListWithBankExport` is the stored procedure being called.
+   - **Parameters**: Parameters are created as `SqlParameter` objects and added to the command.
+   - **Command Execution**: The `SqlCommand` is created, set up, and executed with `SqlDataAdapter` to fill the `DataSet`.
+
+3. **GetCurrentUserId Method**: This method should be implemented based on your application logic to fetch the current user ID.
+
+### Key Points:
+- Ensure that the connection string name used in `CPSIntranetEntities` matches your configuration.
+- Implement the `GetCurrentUserId` method according to your application’s user management system.
+- This approach assumes that the stored procedure and parameters are compatible with EF and SQL Server.
+
+This code assumes you're using Entity Framework 6 or EF Core with similar ADO.NET capabilities. Adjust the connection string and other EF configurations according to your specific setup.
